@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { createList, deleteList } from '../lib/actions';
+import { createList, deleteList } from './_lib/actions';
 import styles from './ListSidebar.module.css';
 
 interface ListRow {

@@ -2,7 +2,7 @@
 
 import { Checkbox } from '@sovereignfs/ui';
 import { useEffect, useRef, useState } from 'react';
-import { createTask, deleteTask, getSubtasks, toggleComplete } from '../lib/actions';
+import { createTask, deleteTask, getSubtasks, toggleComplete } from '../_lib/actions';
 import styles from './SubtaskList.module.css';
 
 interface Subtask {

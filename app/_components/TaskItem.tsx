@@ -4,7 +4,7 @@ import { Checkbox, DragHandleRow } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useEffect, useRef, useState } from 'react';
-import { deleteTask, toggleComplete, updateTask } from '../lib/actions';
+import { deleteTask, toggleComplete, updateTask } from '../_lib/actions';
 import SubtaskList from './SubtaskList';
 import styles from './TaskItem.module.css';
 

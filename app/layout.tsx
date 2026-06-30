@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { getLists } from '../lib/actions';
+import { getLists } from './_lib/actions';
 import ListSidebar from './ListSidebar';
 import styles from './layout.module.css';
 

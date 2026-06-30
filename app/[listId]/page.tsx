@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getLists, getTasks, getOrCreatePrefs } from '../../lib/actions';
+import { getLists, getTasks, getOrCreatePrefs } from '../_lib/actions';
 import TasksPane from './TasksPane';
 
 interface Props {

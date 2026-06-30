@@ -18,8 +18,8 @@ import {
 import { Toggle } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import TaskItem from '../../components/TaskItem';
-import { createTask, reorderTasks, updatePrefs } from '../../lib/actions';
+import TaskItem from '../_components/TaskItem';
+import { createTask, reorderTasks, updatePrefs } from '../_lib/actions';
 import styles from './TasksPane.module.css';
 
 interface ListRow {
