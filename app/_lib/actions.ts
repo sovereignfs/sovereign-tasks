@@ -4,7 +4,7 @@ import { sdk } from '@sovereignfs/sdk';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
-import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../db/schema';
+import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
 
 // DrizzleClient is typed as `unknown` in the SDK (dialect-agnostic contract).
 // We cast to the SQLite type here since the platform default dialect is SQLite.
