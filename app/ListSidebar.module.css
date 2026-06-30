@@ -1,0 +1,118 @@
+.nav {
+  padding: var(--sv-space-4) 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sv-space-4) var(--sv-space-2);
+}
+
+.heading {
+  font-size: var(--sv-font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-color-text-secondary);
+}
+
+.newBtn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--sv-radius-sm);
+  font-size: 16px;
+  color: var(--sv-color-text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.newBtn:hover {
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-primary);
+}
+
+.addRow {
+  padding: var(--sv-space-1) var(--sv-space-4) var(--sv-space-2);
+}
+
+.addInput {
+  all: unset;
+  width: 100%;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border-bottom: 1px solid var(--sv-color-accent);
+  padding-bottom: 2px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  position: relative;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sv-space-2) var(--sv-space-4);
+  text-decoration: none;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border-radius: 0;
+  transition: background-color 0.1s ease;
+}
+
+.link:hover {
+  background: var(--sv-color-surface-raised);
+}
+
+.active {
+  background: var(--sv-color-surface-raised);
+  font-weight: 500;
+}
+
+.listTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deleteBtn {
+  all: unset;
+  font-size: 10px;
+  color: var(--sv-color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  border-radius: var(--sv-radius-sm);
+  transition: opacity 0.1s ease, color 0.1s ease;
+}
+
+.link:hover .deleteBtn,
+.link:focus-within .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  color: var(--sv-color-error);
+}
+
+.empty {
+  padding: var(--sv-space-2) var(--sv-space-4);
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-secondary);
+  margin: 0;
+}

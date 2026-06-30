@@ -1,0 +1,76 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--sv-space-6) var(--sv-space-8);
+  max-width: 680px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sv-space-4);
+  gap: var(--sv-space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sv-font-size-xl);
+  font-weight: 600;
+  color: var(--sv-color-text-primary);
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.toggleText {
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-secondary);
+  white-space: nowrap;
+}
+
+.addRow {
+  margin-bottom: var(--sv-space-4);
+}
+
+.addInput {
+  all: unset;
+  display: block;
+  width: 100%;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border-radius: var(--sv-radius-md);
+  border: 1px solid var(--sv-color-border);
+  background: var(--sv-color-surface-raised);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.addInput::placeholder {
+  color: var(--sv-color-text-secondary);
+}
+
+.addInput:focus {
+  border-color: var(--sv-color-accent);
+  outline: none;
+}
+
+.taskList {
+  flex: 1;
+  border-radius: var(--sv-radius-md);
+  border: 1px solid var(--sv-color-border);
+  overflow: hidden;
+  background: var(--sv-color-surface);
+}
+
+.empty {
+  margin: var(--sv-space-8) 0 0;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-secondary);
+  text-align: center;
+}

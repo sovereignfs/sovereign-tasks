@@ -1,0 +1,109 @@
+.wrapper {
+  border-bottom: 1px solid var(--sv-color-border);
+}
+
+.wrapper:last-child {
+  border-bottom: none;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-3) var(--sv-space-2);
+  min-height: 44px;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.title {
+  all: unset;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  cursor: text;
+  word-break: break-word;
+  line-height: 1.5;
+  transition: color 0.15s ease;
+  position: relative;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
+  background: var(--sv-color-text-secondary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.2s ease;
+}
+
+.complete {
+  color: var(--sv-color-text-secondary);
+}
+
+.complete::after {
+  transform: scaleX(1);
+}
+
+.notes {
+  margin: 0;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-secondary);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.editInput {
+  all: unset;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border-bottom: 1px solid var(--sv-color-accent);
+  width: 100%;
+  padding-bottom: 1px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.row:hover .actions,
+.row:focus-within .actions {
+  opacity: 1;
+}
+
+.actionBtn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--sv-radius-sm);
+  font-size: 10px;
+  color: var(--sv-color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.actionBtn:hover {
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-primary);
+}
+
+.deleteBtn:hover {
+  background: var(--sv-color-error-subtle);
+  color: var(--sv-color-error);
+}

@@ -1,0 +1,58 @@
+.root {
+  padding: 0 var(--sv-space-2) var(--sv-space-2) calc(var(--sv-space-6) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-1) 0;
+}
+
+.row:hover .deleteBtn,
+.row:focus-within .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn {
+  all: unset;
+  font-size: 10px;
+  color: var(--sv-color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease, color 0.1s ease;
+  flex-shrink: 0;
+}
+
+.deleteBtn:hover {
+  color: var(--sv-color-error);
+}
+
+.addRow {
+  padding: var(--sv-space-1) 0;
+}
+
+.addInput {
+  all: unset;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-primary);
+  border-bottom: 1px solid var(--sv-color-accent);
+  width: 100%;
+  padding-bottom: 1px;
+}
+
+.addBtn {
+  all: unset;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-secondary);
+  cursor: pointer;
+  padding: var(--sv-space-1) 0;
+  transition: color 0.1s ease;
+}
+
+.addBtn:hover {
+  color: var(--sv-color-text-primary);
+}

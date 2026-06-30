@@ -1,0 +1,34 @@
+.shell {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--sv-color-border);
+  overflow-y: auto;
+  background: var(--sv-color-surface);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  background: var(--sv-color-surface);
+}
+
+/* Stack on mobile */
+@media (max-width: 640px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--sv-color-border);
+    overflow-y: visible;
+  }
+}
