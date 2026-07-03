@@ -55,11 +55,13 @@
 }
 
 .notes {
-  margin: 0;
+  all: unset;
+  display: block;
   font-size: var(--sv-font-size-xs);
   color: var(--sv-color-text-secondary);
   line-height: 1.4;
   white-space: pre-wrap;
+  cursor: text;
 }
 
 .editInput {
@@ -71,16 +73,37 @@
   padding-bottom: 1px;
 }
 
+/* Subtask progress badge — shown on the parent row when it has subtasks
+   and the subtask list is collapsed. Clicking it expands the list. */
+.progress {
+  all: unset;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--sv-space-2);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.1s ease;
+}
+
+.progress:hover {
+  color: var(--sv-color-text-primary);
+}
+
 .actions {
   display: flex;
   align-items: center;
   gap: var(--sv-space-1);
-  opacity: 0;
-  transition: opacity 0.1s ease;
 }
 
-.row:hover .actions,
-.row:focus-within .actions {
+/* When a task has subtasks, keep its expand chevron visible at rest
+   (not dimmed) so subtask presence is discoverable without hovering. */
+.hasSubtasks {
   opacity: 1;
 }
 
@@ -95,15 +118,64 @@
   font-size: 10px;
   color: var(--sv-color-text-secondary);
   cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  /* Toggle is always visible at rest — dimmed so it doesn't compete with content */
+  opacity: 0.4;
+  transition: background-color 0.1s ease, color 0.1s ease, opacity 0.1s ease;
 }
 
 .actionBtn:hover {
   background: var(--sv-color-surface-raised);
   color: var(--sv-color-text-primary);
+  opacity: 1;
+}
+
+/* Row hover/focus brings the toggle to full opacity */
+.row:hover .actionBtn,
+.row:focus-within .actionBtn {
+  opacity: 1;
+}
+
+/* Delete is more destructive — keep hidden until the row is hovered */
+.deleteBtn {
+  opacity: 0;
+}
+
+.row:hover .deleteBtn,
+.row:focus-within .deleteBtn {
+  opacity: 1;
 }
 
 .deleteBtn:hover {
   background: var(--sv-color-error-subtle);
   color: var(--sv-color-error);
+}
+
+.notesInput {
+  all: unset;
+  display: block;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-primary);
+  line-height: 1.4;
+  width: 100%;
+  resize: none;
+  border-bottom: 1px solid var(--sv-color-accent);
+  padding-bottom: 2px;
+  box-sizing: border-box;
+}
+
+.notesPlaceholder {
+  all: unset;
+  display: block;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-secondary);
+  cursor: text;
+  padding: 1px 0;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+/* Show "Add a note…" only when the task row is hovered or focused */
+.row:hover .notesPlaceholder,
+.row:focus-within .notesPlaceholder {
+  opacity: 1;
 }

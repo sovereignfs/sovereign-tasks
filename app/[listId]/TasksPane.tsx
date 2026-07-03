@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Toggle } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useOptimistic, useState, useTransition } from 'react';
 import TaskItem from '../_components/TaskItem';
 import { createTask, reorderTasks, updatePrefs } from '../_lib/actions';
 import styles from './TasksPane.module.css';
@@ -34,6 +34,8 @@ interface TaskRow {
   notes: string | null;
   completedAt: number | null;
   parentId: string | null;
+  subtaskCount: number;
+  subtaskDoneCount: number;
 }
 
 interface Props {
@@ -43,12 +45,38 @@ interface Props {
   listId: string;
 }
 
-export default function TasksPane({ list, initialTasks, showCompleted: initialShowCompleted, listId }: Props) {
+type TaskAction = { type: 'add'; task: TaskRow } | { type: 'reorder'; ids: string[] };
+
+function tasksReducer(state: TaskRow[], action: TaskAction): TaskRow[] {
+  switch (action.type) {
+    case 'add':
+      return [...state, action.task];
+    case 'reorder': {
+      const byId = new Map(state.map((t) => [t.id, t]));
+      return action.ids.map((id) => byId.get(id)).filter((t): t is TaskRow => t !== undefined);
+    }
+  }
+}
+
+export default function TasksPane({
+  list,
+  initialTasks,
+  showCompleted: initialShowCompleted,
+  listId,
+}: Props) {
   const router = useRouter();
-  const [tasks, setTasks] = useState(initialTasks);
-  const [showCompleted, setShowCompleted] = useState(initialShowCompleted);
   const [newTitle, setNewTitle] = useState('');
   const [_isPending, startTransition] = useTransition();
+
+  // The server component re-renders with fresh props after router.refresh(),
+  // so the server-provided props are the source of truth. useOptimistic layers
+  // pending mutations on top and automatically resets to the new base once the
+  // transition settles — no manual prop→state syncing.
+  const [tasks, applyTaskAction] = useOptimistic(initialTasks, tasksReducer);
+  const [showCompleted, setOptimisticShowCompleted] = useOptimistic(
+    initialShowCompleted,
+    (_prev, next: boolean) => next,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -61,36 +89,69 @@ export default function TasksPane({ list, initialTasks, showCompleted: initialSh
     startTransition(() => router.refresh());
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     const oldIndex = tasks.findIndex((t) => t.id === active.id);
     const newIndex = tasks.findIndex((t) => t.id === over.id);
-    const reordered = arrayMove(tasks, oldIndex, newIndex);
-    setTasks(reordered);
-    await reorderTasks(listId, reordered.map((t) => t.id));
+    const ids = arrayMove(tasks, oldIndex, newIndex).map((t) => t.id);
+
+    startTransition(async () => {
+      applyTaskAction({ type: 'reorder', ids });
+      await reorderTasks(listId, ids);
+      router.refresh();
+    });
   }
 
-  async function handleAddTask() {
+  function handleAddTask() {
     const trimmed = newTitle.trim();
     if (!trimmed) return;
-    await createTask(listId, trimmed);
     setNewTitle('');
-    refresh();
+
+    startTransition(async () => {
+      // Optimistic placeholder — visible only for the duration of this pending
+      // transition, then replaced by the real row (with its persisted id) when
+      // router.refresh() lands. Not interactable long enough for its temp id to
+      // reach a server action.
+      applyTaskAction({
+        type: 'add',
+        task: {
+          id: `optimistic-${Date.now()}`,
+          listId,
+          title: trimmed,
+          notes: null,
+          completedAt: null,
+          parentId: null,
+          subtaskCount: 0,
+          subtaskDoneCount: 0,
+        },
+      });
+      await createTask(listId, trimmed);
+      router.refresh();
+    });
   }
 
-  async function handleToggleShowCompleted(checked: boolean) {
-    setShowCompleted(checked);
-    await updatePrefs(listId, { showCompleted: checked });
+  function handleToggleShowCompleted(checked: boolean) {
+    startTransition(async () => {
+      setOptimisticShowCompleted(checked);
+      await updatePrefs(listId, { showCompleted: checked });
+      router.refresh();
+    });
   }
 
   return (
-    <div className={styles.pane}>
+    // suppressHydrationWarning: password-manager extensions (e.g. ProtonPass)
+    // inject data-* attributes onto this div causing a benign server/client
+    // attribute mismatch. Suppresses noise without hiding real bugs (children
+    // are not affected).
+    <div className={styles.pane} suppressHydrationWarning>
       <header className={styles.header}>
         <h1 className={styles.title}>{list.title}</h1>
         <div className={styles.toggleLabel}>
-          <span className={styles.toggleText} id="show-completed-label">Show completed</span>
+          <span className={styles.toggleText} id="show-completed-label">
+            Show completed
+          </span>
           <Toggle
             checked={showCompleted}
             onChange={handleToggleShowCompleted}
@@ -103,7 +164,7 @@ export default function TasksPane({ list, initialTasks, showCompleted: initialSh
       <div className={styles.addRow}>
         <input
           className={styles.addInput}
-          placeholder="Add a task…"
+          placeholder="Add a task and press Enter…"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => {
@@ -123,15 +184,16 @@ export default function TasksPane({ list, initialTasks, showCompleted: initialSh
                 onMutated={refresh}
               />
             ))}
+            {visible.length === 0 && (
+              <p className={styles.empty}>
+                {tasks.length === 0
+                  ? 'No tasks yet — type above and press Enter to add one.'
+                  : 'All done! Toggle "Show completed" to see finished tasks.'}
+              </p>
+            )}
           </div>
         </SortableContext>
       </DndContext>
-
-      {visible.length === 0 && (
-        <p className={styles.empty}>
-          {showCompleted ? 'No tasks yet. Add one above.' : 'All done! Toggle to see completed tasks.'}
-        </p>
-      )}
     </div>
   );
 }

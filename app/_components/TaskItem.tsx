@@ -15,6 +15,8 @@ export interface TaskItemData {
   notes: string | null;
   completedAt: number | null;
   parentId: string | null;
+  subtaskCount: number;
+  subtaskDoneCount: number;
 }
 
 interface Props {
@@ -25,25 +27,41 @@ interface Props {
 
 export default function TaskItem({ task, showCompleted, onMutated }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [editNotes, setEditNotes] = useState(task.notes ?? '');
   const [pending, setPending] = useState(false);
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (editing) editInputRef.current?.focus();
-  }, [editing]);
+    if (editingTitle) titleInputRef.current?.focus();
+  }, [editingTitle]);
+
+  useEffect(() => {
+    if (editingNotes) {
+      notesRef.current?.focus();
+      const len = notesRef.current?.value.length ?? 0;
+      notesRef.current?.setSelectionRange(len, len);
+    }
+  }, [editingNotes]);
+
+  // Keep local state in sync after server refresh
+  useEffect(() => {
+    setEditTitle(task.title);
+  }, [task.title]);
+  useEffect(() => {
+    setEditNotes(task.notes ?? '');
+  }, [task.notes]);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
+  const style = { transform: CSS.Transform.toString(transform), transition };
   const isComplete = task.completedAt !== null;
+  const hasSubtasks = task.subtaskCount > 0;
 
   async function handleToggle(checked: boolean) {
     setPending(true);
@@ -57,13 +75,25 @@ export default function TaskItem({ task, showCompleted, onMutated }: Props) {
     onMutated();
   }
 
-  async function handleEditCommit() {
+  async function handleTitleCommit() {
     const trimmed = editTitle.trim();
     if (trimmed && trimmed !== task.title) {
       await updateTask(task.id, task.listId, { title: trimmed });
       onMutated();
+    } else {
+      setEditTitle(task.title);
     }
-    setEditing(false);
+    setEditingTitle(false);
+  }
+
+  async function handleNotesCommit() {
+    const trimmed = editNotes.trim();
+    const current = task.notes ?? '';
+    if (trimmed !== current) {
+      await updateTask(task.id, task.listId, { notes: trimmed || undefined });
+      onMutated();
+    }
+    setEditingNotes(false);
   }
 
   return (
@@ -79,18 +109,18 @@ export default function TaskItem({ task, showCompleted, onMutated }: Props) {
           />
 
           <div className={styles.body}>
-            {editing ? (
+            {editingTitle ? (
               <input
-                ref={editInputRef}
+                ref={titleInputRef}
                 className={styles.editInput}
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                onBlur={handleEditCommit}
+                onBlur={handleTitleCommit}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleEditCommit();
+                  if (e.key === 'Enter') handleTitleCommit();
                   if (e.key === 'Escape') {
                     setEditTitle(task.title);
-                    setEditing(false);
+                    setEditingTitle(false);
                   }
                 }}
               />
@@ -98,20 +128,71 @@ export default function TaskItem({ task, showCompleted, onMutated }: Props) {
               <button
                 type="button"
                 className={[styles.title, isComplete ? styles.complete : ''].filter(Boolean).join(' ')}
-                onClick={() => setEditing(true)}
+                onClick={() => setEditingTitle(true)}
               >
                 {task.title}
               </button>
             )}
 
-            {task.notes && <p className={styles.notes}>{task.notes}</p>}
+            {editingNotes ? (
+              <textarea
+                ref={notesRef}
+                className={styles.notesInput}
+                value={editNotes}
+                rows={2}
+                placeholder="Add a note…"
+                onChange={(e) => setEditNotes(e.target.value)}
+                onBlur={handleNotesCommit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setEditNotes(task.notes ?? '');
+                    setEditingNotes(false);
+                  }
+                  // Shift+Enter = newline; plain Enter = save
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleNotesCommit();
+                  }
+                }}
+              />
+            ) : task.notes ? (
+              <button
+                type="button"
+                className={styles.notes}
+                onClick={() => setEditingNotes(true)}
+              >
+                {task.notes}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.notesPlaceholder}
+                onClick={() => setEditingNotes(true)}
+              >
+                Add a note…
+              </button>
+            )}
+
+            {hasSubtasks && !expanded && (
+              <button
+                type="button"
+                className={styles.progress}
+                aria-label={`${task.subtaskDoneCount} of ${task.subtaskCount} subtasks done — show subtasks`}
+                onClick={() => setExpanded(true)}
+              >
+                {task.subtaskDoneCount}/{task.subtaskCount}
+              </button>
+            )}
           </div>
 
           <div className={styles.actions}>
             <button
               type="button"
-              className={styles.actionBtn}
-              aria-label="Show subtasks"
+              className={[styles.actionBtn, hasSubtasks ? styles.hasSubtasks : '']
+                .filter(Boolean)
+                .join(' ')}
+              aria-label={expanded ? 'Hide subtasks' : 'Show subtasks'}
+              aria-expanded={expanded}
               onClick={() => setExpanded((v) => !v)}
             >
               {expanded ? '▴' : '▾'}
@@ -133,6 +214,7 @@ export default function TaskItem({ task, showCompleted, onMutated }: Props) {
           parentId={task.id}
           listId={task.listId}
           showCompleted={showCompleted}
+          parentCompletedAt={task.completedAt}
           onMutated={onMutated}
         />
       )}

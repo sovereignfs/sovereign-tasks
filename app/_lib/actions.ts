@@ -1,7 +1,7 @@
 'use server';
 
 import { sdk } from '@sovereignfs/sdk';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
 import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
@@ -129,17 +129,48 @@ async function assertListOwnership(db: Db, listId: string, userId: string, tenan
 export async function getTasks(listId: string) {
   const { db, userId, tenantId } = await getContext();
   await assertListOwnership(db, listId, userId, tenantId);
-  return db
-    .select()
-    .from(tasksItems)
-    .where(
-      and(
-        eq(tasksItems.listId, listId),
-        eq(tasksItems.tenantId, tenantId),
-        isNull(tasksItems.parentId),
+
+  // Top-level tasks, plus a single flat read of every subtask in the list so we
+  // can attach per-parent counts without an N+1 fetch. Aggregation happens in
+  // JS — a grouped SQL count would be dialect-specific and this list is small.
+  const [top, subs] = await Promise.all([
+    db
+      .select()
+      .from(tasksItems)
+      .where(
+        and(
+          eq(tasksItems.listId, listId),
+          eq(tasksItems.tenantId, tenantId),
+          isNull(tasksItems.parentId),
+        ),
+      )
+      .orderBy(asc(tasksItems.sortOrder), asc(tasksItems.createdAt)),
+    db
+      .select({ parentId: tasksItems.parentId, completedAt: tasksItems.completedAt })
+      .from(tasksItems)
+      .where(
+        and(
+          eq(tasksItems.listId, listId),
+          eq(tasksItems.tenantId, tenantId),
+          isNotNull(tasksItems.parentId),
+        ),
       ),
-    )
-    .orderBy(asc(tasksItems.sortOrder), asc(tasksItems.createdAt));
+  ]);
+
+  const counts = new Map<string, { total: number; done: number }>();
+  for (const s of subs) {
+    if (!s.parentId) continue;
+    const c = counts.get(s.parentId) ?? { total: 0, done: 0 };
+    c.total += 1;
+    if (s.completedAt !== null) c.done += 1;
+    counts.set(s.parentId, c);
+  }
+
+  return top.map((t) => ({
+    ...t,
+    subtaskCount: counts.get(t.id)?.total ?? 0,
+    subtaskDoneCount: counts.get(t.id)?.done ?? 0,
+  }));
 }
 
 export async function getSubtasks(parentId: string, listId: string) {

@@ -61,16 +61,17 @@
 }
 
 .taskList {
-  flex: 1;
   border-radius: var(--sv-radius-md);
   border: 1px solid var(--sv-color-border);
   overflow: hidden;
   background: var(--sv-color-surface);
+  min-height: 80px;
 }
 
 .empty {
-  margin: var(--sv-space-8) 0 0;
+  padding: var(--sv-space-6) var(--sv-space-4);
   font-size: var(--sv-font-size-sm);
   color: var(--sv-color-text-secondary);
   text-align: center;
+  margin: 0;
 }

@@ -89,25 +89,48 @@
   white-space: nowrap;
 }
 
-.deleteBtn {
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+  flex-shrink: 0;
+}
+
+.rowBtn {
   all: unset;
   font-size: 10px;
   color: var(--sv-color-text-secondary);
   cursor: pointer;
   opacity: 0;
-  flex-shrink: 0;
   padding: 2px 4px;
   border-radius: var(--sv-radius-sm);
   transition: opacity 0.1s ease, color 0.1s ease;
 }
 
-.link:hover .deleteBtn,
-.link:focus-within .deleteBtn {
+.link:hover .rowBtn,
+.link:focus-within .rowBtn {
   opacity: 1;
+}
+
+.rowBtn:hover {
+  color: var(--sv-color-text-primary);
 }
 
 .deleteBtn:hover {
   color: var(--sv-color-error);
+}
+
+.editRow {
+  padding: var(--sv-space-2) var(--sv-space-4);
+}
+
+.renameInput {
+  all: unset;
+  width: 100%;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border-bottom: 1px solid var(--sv-color-accent);
+  padding-bottom: 2px;
 }
 
 .empty {
