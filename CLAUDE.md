@@ -6,11 +6,10 @@ Guidance for Claude Code working in this plugin repository.
 
 **Sovereign Tasks** — a minimal, privacy-first task manager. A first-party
 (`type: sovereign`) Sovereign plugin maintained in its own repository
-(`sovereign-plugin-tasks`). The primary reference implementation for
+(`sovereign-tasks`). The primary reference implementation for
 externally-maintained Sovereign plugins.
 
-Spec: `tasks.md` (kept alongside the plugin during development; lives in
-`local/sovereign-plugin-proposals/tasks.md` in the platform repo).
+Spec: [SPEC.md](SPEC.md)
 
 ## Identity
 
@@ -69,12 +68,12 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 | Milestone | TSK IDs  | Status  | Description                                          |
 | --------- | -------- | ------- | ---------------------------------------------------- |
 | v0.1      | 01–09    | current | Private lists, task/subtask CRUD, completion, sort   |
-| v0.2      | 10–14    | future  | Collaboration — requires `sdk.directory` (RFC 0041)  |
-| v0.3      | 15–21    | future  | Due dates, filters, cross-list search, bulk actions  |
-| v0.4      | 22–25    | future  | Recurrence via `rrule` (RFC 5545)                    |
+| v0.2      | 10–14    | future  | Collaboration — requires `sdk.directory` (sv-RFC 0041)  |
+| v0.3      | 15–21    | future  | Due dates, filters, cross-list search, bulk actions     |
+| v0.4      | 22–25    | future  | Recurrence via `rrule` (sv-RFC 5545)                    |
 | v1.0      | —        | future  | Polish, docs, reference implementation               |
 
-**Do not start v0.2 work until `sdk.directory` is available.** Do not call
+**Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
 
 ## UI rules
@@ -83,6 +82,21 @@ Console admin user routes as a workaround.
 - Never hardcode colours, spacing, or radii — always reference tokens.
 - Two-panel layout on desktop (list sidebar left, task pane right).
 - Stacked (list → task) on mobile.
+
+### Views
+
+One data model, multiple presentations. Views are a lens — never a fork of the
+task/completion model.
+
+| View | `kind` | Status |
+| --- | --- | --- |
+| Compact | `compact` | v0.1 |
+| Kanban Compact | `kanban_compact` | future |
+| Kanban | `kanban` | future |
+| Visualizer | `visualizer` | future |
+
+v0.1 renders the Compact view only. Future views are additive and must not
+require changes to `tasks_items` ownership or completion columns.
 
 ## Drag reorder
 
@@ -108,7 +122,7 @@ platform monorepo root:
 pnpm dev   # starts runtime on :3000; plugin routes are available at /tasks
 ```
 
-When porting to the standalone `sovereign-plugin-tasks` repo, the plugin is
+When porting to the standalone `sovereign-tasks` repo, the plugin is
 installed via `sv plugin add` and the platform hot-reloads it.
 
 ## Open questions (from spec)
