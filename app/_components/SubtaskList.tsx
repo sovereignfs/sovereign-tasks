@@ -15,10 +15,20 @@ interface Props {
   parentId: string;
   listId: string;
   showCompleted: boolean;
+  // Parent's completedAt — changes when the parent is completed/reopened, which
+  // cascade-updates subtasks server-side. Used purely as a reload trigger so an
+  // already-expanded list reflects the cascade without a manual re-expand.
+  parentCompletedAt: number | null;
   onMutated: () => void;
 }
 
-export default function SubtaskList({ parentId, listId, showCompleted, onMutated }: Props) {
+export default function SubtaskList({
+  parentId,
+  listId,
+  showCompleted,
+  parentCompletedAt,
+  onMutated,
+}: Props) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [adding, setAdding] = useState(false);
@@ -33,9 +43,10 @@ export default function SubtaskList({ parentId, listId, showCompleted, onMutated
     setSubtasks(rows as Subtask[]);
   }
 
+  // Reload on mount and whenever the parent's completion changes (cascade).
   useEffect(() => {
     load();
-  }, [parentId, listId]);
+  }, [parentId, listId, parentCompletedAt]);
 
   const visible = showCompleted ? subtasks : subtasks.filter((s) => s.completedAt === null);
 
