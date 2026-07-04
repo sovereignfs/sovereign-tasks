@@ -79,6 +79,8 @@ export const tasksItems = sqliteTable('tasks_items', {
   title: text('title').notNull(),
   /** Nullable free text. */
   notes: text('notes'),
+  /** Starred/favourite flag. Surfaced in the UI as a star toggle. */
+  favorite: integer('favorite', { mode: 'boolean' }).notNull().default(false),
   /** Nullable. ISO date string 'YYYY-MM-DD'. Added v0.3. */
   dueDate: text('due_date'),
   /** Nullable. 'HH:MM' string. Requires due_date. Added v0.3. */
