@@ -44,7 +44,17 @@ bulk actions remain the open items in this milestone.
 
 ## v0.4 — Recurrence
 
-TSK-22 through TSK-25: recurring tasks via `rrule` (sv-RFC 5545), next-occurrence generation, per-instance editing.
+Landed out of the roadmap's own order — jumped ahead of v0.3's remaining
+keyboard-shortcut/bulk-action items since recurring tasks were judged more
+important. `recurrence_rule`/`series_id` columns already existed on
+`tasks_items` since the very first migration, so no schema change was needed.
+
+| ID | Requirement | Status |
+| --- | --- | --- |
+| TSK-22 | Set a recurrence rule (daily/weekly/monthly/yearly/every-N/specific weekdays) | ✅ (nth-day-of-month deferred) |
+| TSK-23 | Completing a recurring task generates the next occurrence | ✅ (no subtasks copied) |
+| TSK-24 | Edit-scope prompt: this / this and future / all | ✅ (title/notes/due-date/rule only) |
+| TSK-25 | Human-readable recurrence pattern in the task UI | ✅ |
 
 ## v1.0 — Polish and reference implementation
 
