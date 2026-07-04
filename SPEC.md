@@ -162,6 +162,7 @@ selection surface. Do not call Console/admin user routes.
 | TSK-20 | Bulk select tasks and delete selected.                                                  |
 | TSK-21 | Bulk select tasks and move selected to another list.                                    |
 | TSK-26 | Star/favourite a task (toggle on the row and in the detail pane). Added ahead of phasing. |
+| TSK-27 | Move a single task to a different list from the detail pane's List field. Subtasks move with their parent. Added ahead of phasing — distinct from TSK-21's bulk move. |
 
 ### v0.4 — Recurrence
 
@@ -398,15 +399,21 @@ linear list. The data model reserves saved view metadata for three later variant
 **Kanban Compact** (`kanban_compact`), **Kanban** (`kanban`), and **Visualizer**
 (`visualizer`). Those variants are not part of v0.1.
 
-**Primitives.** The drag-handle row and strike-through checkbox come from
-`packages/ui` (`DragHandleRow`, `Checkbox`). The due-date control is built
-in-plugin as a `Popover` wrapping native `<input type="date">`/`<input
-type="time">` plus quick-date buttons, and the subtask progress ring is a small
-in-plugin SVG — kept local until a second consumer justifies promoting them.
-Still likely to belong in `packages/ui` when their milestones land: a bulk action
-bar (floating, appears on selection; v0.3 bulk actions) and a recurrence pattern
-editor (v0.4). Drive those into `packages/ui` rather than building them inline —
-they are broadly reusable across plugins.
+**Primitives.** The strike-through checkbox comes from `packages/ui`
+(`Checkbox`). Drag reorder (lists and tasks) uses a custom in-plugin floating
+overlay handle (`GripIcon`), not `packages/ui`'s `DragHandleRow` — that
+component reserves a fixed-width gutter before the row's content, which
+couldn't be made to align with the header/add-row indent above it; the
+floating handle occupies no layout space until hovered. The due-date control is
+a `Popover` combining quick-date buttons, an in-plugin `CalendarGrid` (month
+view — no calendar component exists in `packages/ui`), and — only once a date
+is set — a native `<input type="time">`. The subtask progress ring and the
+calendar icon are small in-plugin SVGs. All of these are kept local until a
+second consumer justifies promoting them to `packages/ui`. Still likely to
+belong in `packages/ui` when their milestones land: a bulk action bar (floating,
+appears on selection; v0.3 bulk actions) and a recurrence pattern editor (v0.4).
+Drive those into `packages/ui` rather than building them inline — they are
+broadly reusable across plugins.
 
 ## Build plan
 
@@ -475,6 +482,7 @@ external plugin developers.
 
 | Version | Date     | Change                                                                              |
 | ------- | -------- | ----------------------------------------------------------------------------------- |
+| 0.5     | Jul 2026 | Detail-pane polish: custom `CalendarGrid` due-date picker (replacing the native date input), a List field to move a task to a different list (TSK-27), boxed subtask cards with a count label, delete-task confirmation styling. Sidebar drag-reorder for lists, floating (non-reserved-gutter) drag handles replacing `DragHandleRow` in both the sidebar and task rows, and a fix for `@dnd-kit`'s `DndContext` SSR/hydration ID mismatch (explicit `id` prop on both contexts). |
 | 0.4     | Jul 2026 | Three-column web home (lists · tasks · detail); due dates, filters, cross-list search, and a `favorite` column landed ahead of the original phasing. Collaboration and recurrence remain deferred. |
 | 0.3     | Jun 2026 | Narrowed v0.1 to private tasks; moved collaboration after user-directory support.   |
 | 0.2     | Jun 2026 | Added manifest `icon` field; added missing `tenant_id` to `tasks_list_members`.     |

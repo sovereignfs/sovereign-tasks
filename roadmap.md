@@ -40,6 +40,7 @@ bulk actions remain the open items in this milestone.
 | TSK-20 | Bulk select + delete | 🔲 |
 | TSK-21 | Bulk select + move to another list | 🔲 |
 | TSK-26 | Star/favourite a task (added ahead of phasing) | ✅ |
+| TSK-27 | Move a single task to a different list from the detail pane (added ahead of phasing; distinct from TSK-21's bulk move) | ✅ |
 
 ## v0.4 — Recurrence
 

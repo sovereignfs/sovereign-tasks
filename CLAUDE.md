@@ -73,9 +73,10 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 | v0.4      | 22–25    | future  | Recurrence via `rrule` (sv-RFC 5545)                    |
 | v1.0      | —        | future  | Polish, docs, reference implementation               |
 
-**TSK-26 (star/favourite)** shipped ahead of phasing alongside the three-column
-web home. The three-column layout, due dates, filters, and cross-list search all
-landed early — see `roadmap.md` for per-requirement status.
+**TSK-26 (star/favourite)** and **TSK-27 (move a task to a different list, from
+the detail pane)** shipped ahead of phasing alongside the three-column web home.
+The three-column layout, due dates, filters, and cross-list search all landed
+early — see `roadmap.md` for per-requirement status.
 
 **Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
@@ -122,7 +123,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.2.0**
+Current version: **0.3.0**
 
 ## Running locally
 
