@@ -1,0 +1,89 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navBtn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--sv-color-text-subtle);
+  border-radius: var(--sv-radius-sm);
+  cursor: pointer;
+}
+
+.navBtn:hover {
+  background: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+}
+
+.navLabel {
+  font-size: var(--sv-font-size-sm);
+  font-weight: 500;
+  color: var(--sv-color-text-primary);
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekday {
+  text-align: center;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-subtle);
+  padding-bottom: var(--sv-space-1);
+}
+
+.grid {
+  gap: 2px;
+}
+
+.day {
+  all: unset;
+  box-sizing: border-box;
+  /* Fixed height, not aspect-ratio: the 7-column grid already fixes each
+     cell's width to the (deliberately unchanged) popover width, so
+     aspect-ratio: 1 was forcing every row nearly as tall as it was wide. */
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--sv-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-color-text-primary);
+  border-radius: var(--sv-radius-sm);
+  cursor: pointer;
+}
+
+.day:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.dayOutside {
+  color: var(--sv-color-text-subtle);
+  opacity: 0.5;
+}
+
+.dayToday {
+  box-shadow: inset 0 0 0 1px var(--sv-color-border-strong);
+}
+
+.daySelected,
+.daySelected:hover {
+  background: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+}

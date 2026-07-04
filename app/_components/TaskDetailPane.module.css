@@ -11,6 +11,10 @@
   flex-direction: column;
   gap: var(--sv-space-4);
   padding: var(--sv-space-5);
+  /* Lets .delete's margin-top: auto push it to the bottom of the pane when
+     content is short, instead of sitting right after the last section. */
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 .top {
@@ -80,23 +84,26 @@
   border-color: var(--sv-color-accent);
 }
 
-.subtasks {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sv-space-1);
-}
-
 .delete {
   all: unset;
-  align-self: flex-start;
-  margin-top: var(--sv-space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+  align-self: stretch;
+  justify-content: center;
+  /* auto pushes it to the bottom of .body (min-height: 100%) when the other
+     sections don't fill the pane; still sits right after List when content
+     overflows and the pane scrolls. */
+  margin-top: auto;
   padding: var(--sv-space-2) var(--sv-space-3);
   font-size: var(--sv-font-size-sm);
   color: var(--sv-color-error-text);
-  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-error-surface);
+  border-radius: var(--sv-radius-md);
   cursor: pointer;
+  transition: background-color 0.1s ease;
 }
 
 .delete:hover {
-  background: var(--sv-color-error-surface);
+  background: var(--sv-color-error-border);
 }

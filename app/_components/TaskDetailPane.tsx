@@ -1,11 +1,12 @@
 'use client';
 
-import { Checkbox, EmptyState } from '@sovereignfs/ui';
+import { Checkbox, EmptyState, Icon } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { deleteTask, toggleComplete, updateTask } from '../_lib/actions';
 import DueDateControl from './DueDateControl';
+import ListPickerControl from './ListPickerControl';
 import StarButton from './StarButton';
 import SubtaskList from './SubtaskList';
 import styles from './TaskDetailPane.module.css';
@@ -22,12 +23,20 @@ interface DetailTask {
   dueTime: string | null;
 }
 
+interface ListOption {
+  id: string;
+  title: string;
+  color: string | null;
+}
+
 export default function TaskDetailPane({
   task,
   listId,
+  lists,
 }: {
   task: DetailTask | null;
   listId: string;
+  lists: ListOption[];
 }) {
   if (!task) {
     return (
@@ -41,10 +50,18 @@ export default function TaskDetailPane({
     );
   }
   // Key by id so switching tasks re-initialises the edit buffers.
-  return <DetailBody key={task.id} task={task} listId={listId} />;
+  return <DetailBody key={task.id} task={task} listId={listId} lists={lists} />;
 }
 
-function DetailBody({ task, listId }: { task: DetailTask; listId: string }) {
+function DetailBody({
+  task,
+  listId,
+  lists,
+}: {
+  task: DetailTask;
+  listId: string;
+  lists: ListOption[];
+}) {
   const router = useRouter();
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes ?? '');
@@ -138,6 +155,7 @@ function DetailBody({ task, listId }: { task: DetailTask; listId: string }) {
         onBlur={commitNotes}
       />
 
+      <span className={styles.sectionLabel}>Due date</span>
       <DueDateControl
         taskId={task.id}
         listId={task.listId}
@@ -147,19 +165,26 @@ function DetailBody({ task, listId }: { task: DetailTask; listId: string }) {
       />
 
       {task.parentId === null && (
-        <div className={styles.subtasks}>
-          <span className={styles.sectionLabel}>Subtasks</span>
-          <SubtaskList
-            parentId={task.id}
-            listId={task.listId}
-            showCompleted
-            parentCompletedAt={task.completedAt}
-            onMutated={() => router.refresh()}
-          />
-        </div>
+        <SubtaskList
+          parentId={task.id}
+          listId={task.listId}
+          showCompleted
+          parentCompletedAt={task.completedAt}
+          onMutated={() => router.refresh()}
+          showLabel
+          boxedRows
+        />
+      )}
+
+      {task.parentId === null && (
+        <>
+          <span className={styles.sectionLabel}>List</span>
+          <ListPickerControl taskId={task.id} currentListId={task.listId} lists={lists} />
+        </>
       )}
 
       <button type="button" className={styles.delete} onClick={handleDelete}>
+        <Icon name="trash-2" size="sm" aria-hidden />
         Delete task
       </button>
     </div>

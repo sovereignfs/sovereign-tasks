@@ -35,9 +35,36 @@ export function isOverdue(dueDate: string | null, completedAt: number | null): b
 }
 
 /** Parse a stored 'YYYY-MM-DD' into a local Date (avoids UTC-parse day drift). */
-function parseLocal(dueDate: string): Date {
+export function parseLocal(dueDate: string): Date {
   const [y, m, d] = dueDate.split('-').map(Number);
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+/** "July 2026" for a 0-indexed month. */
+export function monthLabel(year: number, month: number): string {
+  return new Date(year, month, 1).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+export interface CalendarDay {
+  date: string;
+  day: number;
+  inMonth: boolean;
+}
+
+/** Full 6-week (42-day) grid for a 0-indexed month, starting on Sunday and
+ *  padded with the trailing/leading days of adjacent months (dimmed in the
+ *  UI via `inMonth`). */
+export function getCalendarMonthDays(year: number, month: number): CalendarDay[] {
+  const firstOfMonth = new Date(year, month, 1);
+  const start = new Date(year, month, 1 - firstOfMonth.getDay());
+
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    return { date: toISODate(d), day: d.getDate(), inMonth: d.getMonth() === month };
+  });
 }
 
 /** Short, relative-when-close label, e.g. "Today", "Tomorrow", "Mar 5". */

@@ -39,7 +39,7 @@ export default async function ListPage({ params, searchParams }: Props) {
         />
       </div>
       <aside className={styles.detailCol}>
-        <TaskDetailPane task={detailTask} listId={listId} />
+        <TaskDetailPane task={detailTask} listId={listId} lists={lists} />
       </aside>
     </div>
   );

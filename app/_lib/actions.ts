@@ -320,6 +320,40 @@ export async function updateTask(
     .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
 }
 
+/** Reassigns a top-level task to a different list, appending it at the end
+ *  (matching createTask's ordering). Subtasks move with their parent —
+ *  otherwise they'd be orphaned in the old list (getSubtasks filters by both
+ *  parentId and listId). */
+export async function moveTask(taskId: string, fromListId: string, toListId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, fromListId, userId, tenantId);
+  await assertListOwnership(db, toListId, userId, tenantId);
+  if (fromListId === toListId) return;
+
+  const siblings = await db
+    .select({ sortOrder: tasksItems.sortOrder })
+    .from(tasksItems)
+    .where(
+      and(
+        eq(tasksItems.listId, toListId),
+        eq(tasksItems.tenantId, tenantId),
+        isNull(tasksItems.parentId),
+      ),
+    );
+  const maxOrder = siblings.reduce((m, t) => Math.max(m, t.sortOrder), -1);
+  const ts = now();
+
+  await db
+    .update(tasksItems)
+    .set({ listId: toListId, sortOrder: maxOrder + 1, updatedAt: ts })
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+
+  await db
+    .update(tasksItems)
+    .set({ listId: toListId, updatedAt: ts })
+    .where(and(eq(tasksItems.parentId, taskId), eq(tasksItems.tenantId, tenantId)));
+}
+
 export async function setDueDate(
   taskId: string,
   listId: string,

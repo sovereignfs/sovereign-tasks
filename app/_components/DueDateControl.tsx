@@ -5,7 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { setDueDate } from '../_lib/actions';
 import { formatDueDate, isOverdue, quickDates } from '../_lib/date';
+import CalendarGrid from './CalendarGrid';
+import CalendarIcon from './CalendarIcon';
 import styles from './DueDateControl.module.css';
+
+// Matches the "No due date" trigger's rendered width exactly: the detail pane
+// is a fixed 340px column (see [listId]/page.module.css), and TaskDetailPane's
+// .body has --sv-space-5 (20px) padding on each side — 340 - 40 = 300. Safe to
+// hardcode since the pane never resizes (it's hidden below the 900px
+// breakpoint, not shrunk).
+const POPOVER_WIDTH = 300;
 
 interface Props {
   taskId: string;
@@ -21,17 +30,28 @@ export default function DueDateControl({ taskId, listId, dueDate, dueTime, compl
   const [, startTransition] = useTransition();
   const overdue = isOverdue(dueDate, completedAt);
 
+  // Used for calendar-date and time selection — keeps the popover open so
+  // picking a date reveals the (now relevant) time field inline, rather than
+  // closing and forcing a reopen to set a time.
   function commit(date: string | null, time: string | null) {
     startTransition(async () => {
       await setDueDate(taskId, listId, date, time);
       router.refresh();
     });
+  }
+
+  // Used for quick-picks and "Clear due date" — one-shot actions where
+  // there's nothing else to do in the popover afterwards.
+  function commitAndClose(date: string | null, time: string | null) {
+    commit(date, time);
     setOpen(false);
   }
 
   const trigger = (
     <button type="button" className={styles.trigger} onClick={() => setOpen((v) => !v)}>
-      <span className={styles.label}>Due date</span>
+      <span className={styles.icon}>
+        <CalendarIcon />
+      </span>
       <span
         className={[styles.value, dueDate ? '' : styles.placeholder, overdue ? styles.overdue : '']
           .filter(Boolean)
@@ -48,39 +68,37 @@ export default function DueDateControl({ taskId, listId, dueDate, dueTime, compl
       open={open}
       onClose={() => setOpen(false)}
       align="left"
+      width={POPOVER_WIDTH}
       aria-label="Set due date"
     >
       <div className={styles.panel}>
         <div className={styles.quick}>
-          <button type="button" onClick={() => commit(quickDates.today(), dueTime)}>
+          <button type="button" onClick={() => commitAndClose(quickDates.today(), dueTime)}>
             Today
           </button>
-          <button type="button" onClick={() => commit(quickDates.tomorrow(), dueTime)}>
+          <button type="button" onClick={() => commitAndClose(quickDates.tomorrow(), dueTime)}>
             Tomorrow
           </button>
-          <button type="button" onClick={() => commit(quickDates.nextWeek(), dueTime)}>
+          <button type="button" onClick={() => commitAndClose(quickDates.nextWeek(), dueTime)}>
             Next week
           </button>
         </div>
-        <label className={styles.field}>
-          <span>Date</span>
-          <input
-            type="date"
-            value={dueDate ?? ''}
-            onChange={(e) => commit(e.target.value || null, dueTime)}
-          />
-        </label>
-        <label className={styles.field}>
-          <span>Time</span>
-          <input
-            type="time"
-            value={dueTime ?? ''}
-            disabled={!dueDate}
-            onChange={(e) => commit(dueDate, e.target.value || null)}
-          />
-        </label>
+
+        <CalendarGrid value={dueDate} onSelect={(d) => commit(d, dueTime)} />
+
         {dueDate && (
-          <button type="button" className={styles.clear} onClick={() => commit(null, null)}>
+          <label className={styles.field}>
+            <span>Time</span>
+            <input
+              type="time"
+              value={dueTime ?? ''}
+              onChange={(e) => commit(dueDate, e.target.value || null)}
+            />
+          </label>
+        )}
+
+        {dueDate && (
+          <button type="button" className={styles.clear} onClick={() => commitAndClose(null, null)}>
             Clear due date
           </button>
         )}
