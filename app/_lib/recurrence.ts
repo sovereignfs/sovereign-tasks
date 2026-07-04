@@ -120,6 +120,30 @@ export function humanReadable(rule: string): string {
   return new RRule({ ...opts, dtstart: opts.dtstart ?? new Date() }).toText();
 }
 
+const WEEKDAYS_SET = ['MO', 'TU', 'WE', 'TH', 'FR'];
+const FREQ_LABEL: Record<RecurrenceFreq, { simple: string; unit: string }> = {
+  DAILY: { simple: 'Daily', unit: 'day' },
+  WEEKLY: { simple: 'Weekly', unit: 'week' },
+  MONTHLY: { simple: 'Monthly', unit: 'month' },
+  YEARLY: { simple: 'Yearly', unit: 'year' },
+};
+
+/** Compact summary for tight spaces (the task row) — e.g. "Weekly", "Every 2
+ *  weeks", "Weekdays". Omits the weekday list and any end condition, unlike
+ *  humanReadable() above, which is meant for the roomier detail pane. */
+export function summaryLabel(rule: string): string {
+  const pattern = ruleToPattern(rule);
+  const isWeekdaysOnly =
+    pattern.freq === 'WEEKLY' &&
+    pattern.interval === 1 &&
+    pattern.byweekday?.length === WEEKDAYS_SET.length &&
+    WEEKDAYS_SET.every((d) => pattern.byweekday?.includes(d));
+  if (isWeekdaysOnly) return 'Weekdays';
+
+  const { simple, unit } = FREQ_LABEL[pattern.freq];
+  return pattern.interval === 1 ? simple : `Every ${pattern.interval} ${unit}s`;
+}
+
 /** Next occurrence strictly after `afterDate` (the task's current due date),
  *  or null once the series has ended (UNTIL/COUNT exhausted). */
 export function nextOccurrence(rule: string, afterDate: string): string | null {

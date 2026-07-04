@@ -17,7 +17,14 @@ export type EditScope = 'this' | 'future' | 'all';
  */
 export function useEditScope(seriesId: string | null) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [onChoose, setOnChoose] = useState<(() => (scope: EditScope) => void) | null>(null);
+  // Stored via setOnChoose(() => onConfirm): React's functional-updater form
+  // invokes the outer () => onConfirm to *compute* the next state (ignoring
+  // prevState, which this ignores), so the state value ends up being
+  // onConfirm itself — a plain (scope) => void, not a function you need to
+  // call twice. (An earlier version of this file got this backwards and
+  // called onChoose?.()(scope), which throws "onChoose(...) is not a
+  // function" the first time a scope is actually chosen.)
+  const [onChoose, setOnChoose] = useState<((scope: EditScope) => void) | null>(null);
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -45,9 +52,7 @@ export function useEditScope(seriesId: string | null) {
   }
 
   function choose(scope: EditScope) {
-    // onChoose is the *wrapper* stored via setOnChoose(() => onConfirm) — call
-    // it with no args to unwrap the real callback, then invoke that with scope.
-    onChoose?.()(scope);
+    onChoose?.(scope);
     setOnChoose(null);
   }
 
