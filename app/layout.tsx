@@ -7,7 +7,7 @@ export default async function TasksLayout({ children }: { children: ReactNode })
   const lists = await getLists();
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-plugin-fullbleed>
       <aside className={styles.sidebar}>
         <ListSidebar lists={lists} />
       </aside>

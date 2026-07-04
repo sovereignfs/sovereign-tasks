@@ -1,10 +1,11 @@
 'use server';
 
 import { sdk } from '@sovereignfs/sdk';
-import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, like } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
 import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
+import { DEFAULT_LIST_COLOR } from './colors';
 
 // DrizzleClient is typed as `unknown` in the SDK (dialect-agnostic contract).
 // We cast to the SQLite type here since the platform default dialect is SQLite.
@@ -25,11 +26,28 @@ async function getContext() {
 
 export async function getLists() {
   const { db, userId, tenantId } = await getContext();
-  return db
+  const lists = await db
     .select()
     .from(tasksLists)
     .where(and(eq(tasksLists.tenantId, tenantId), eq(tasksLists.ownerId, userId)))
     .orderBy(asc(tasksLists.sortOrder), asc(tasksLists.createdAt));
+
+  // Open-task count per list (top-level, incomplete) in one read. Rows for
+  // lists the user doesn't own are simply never looked up in the map below.
+  const openRows = await db
+    .select({ listId: tasksItems.listId })
+    .from(tasksItems)
+    .where(
+      and(
+        eq(tasksItems.tenantId, tenantId),
+        isNull(tasksItems.parentId),
+        isNull(tasksItems.completedAt),
+      ),
+    );
+  const counts = new Map<string, number>();
+  for (const r of openRows) counts.set(r.listId, (counts.get(r.listId) ?? 0) + 1);
+
+  return lists.map((l) => ({ ...l, openCount: counts.get(l.id) ?? 0 }));
 }
 
 export async function createList(title: string) {
@@ -44,6 +62,9 @@ export async function createList(title: string) {
     tenantId,
     ownerId: userId,
     title: title.trim(),
+    // Colour is mandatory (not a nullable "no colour" state) — every new list
+    // gets the default swatch; the picker never needs a clear option.
+    color: DEFAULT_LIST_COLOR,
     sortOrder: maxOrder + 1,
     createdAt: ts,
     updatedAt: ts,
@@ -66,11 +87,44 @@ export async function createList(title: string) {
   return id;
 }
 
+export async function reorderLists(orderedIds: string[]) {
+  const { db, userId, tenantId } = await getContext();
+  const ts = now();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db
+        .update(tasksLists)
+        .set({ sortOrder: index, updatedAt: ts })
+        .where(
+          and(
+            eq(tasksLists.id, id),
+            eq(tasksLists.tenantId, tenantId),
+            eq(tasksLists.ownerId, userId),
+          ),
+        ),
+    ),
+  );
+}
+
 export async function updateList(listId: string, title: string) {
   const { db, userId, tenantId } = await getContext();
   await db
     .update(tasksLists)
     .set({ title: title.trim(), updatedAt: now() })
+    .where(
+      and(
+        eq(tasksLists.id, listId),
+        eq(tasksLists.tenantId, tenantId),
+        eq(tasksLists.ownerId, userId),
+      ),
+    );
+}
+
+export async function updateListColor(listId: string, color: string) {
+  const { db, userId, tenantId } = await getContext();
+  await db
+    .update(tasksLists)
+    .set({ color, updatedAt: now() })
     .where(
       and(
         eq(tasksLists.id, listId),
@@ -173,6 +227,45 @@ export async function getTasks(listId: string) {
   }));
 }
 
+export async function getTask(taskId: string) {
+  const { db, userId, tenantId } = await getContext();
+  const rows = await db
+    .select()
+    .from(tasksItems)
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+  const task = rows[0];
+  if (!task) return null;
+  // Authorize via the owning list, not the item row (which has no owner_id).
+  await assertListOwnership(db, task.listId, userId, tenantId);
+  return task;
+}
+
+/** Cross-list search over task titles, scoped to the current user's lists. */
+export async function searchTasks(query: string) {
+  const { db, userId, tenantId } = await getContext();
+  const q = query.trim();
+  if (!q) return [];
+
+  const lists = await db
+    .select({ id: tasksLists.id, title: tasksLists.title })
+    .from(tasksLists)
+    .where(and(eq(tasksLists.tenantId, tenantId), eq(tasksLists.ownerId, userId)));
+  const listTitles = new Map(lists.map((l) => [l.id, l.title]));
+  if (listTitles.size === 0) return [];
+
+  const items = await db
+    .select()
+    .from(tasksItems)
+    .where(and(eq(tasksItems.tenantId, tenantId), like(tasksItems.title, `%${q}%`)))
+    .orderBy(desc(tasksItems.updatedAt))
+    .limit(50);
+
+  // Keep only items in lists the user owns; attach the list title for grouping.
+  return items
+    .filter((it) => listTitles.has(it.listId))
+    .map((it) => ({ ...it, listTitle: listTitles.get(it.listId) as string }));
+}
+
 export async function getSubtasks(parentId: string, listId: string) {
   const { db, userId, tenantId } = await getContext();
   await assertListOwnership(db, listId, userId, tenantId);
@@ -224,6 +317,64 @@ export async function updateTask(
   await db
     .update(tasksItems)
     .set({ ...patch, updatedAt: now() })
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+}
+
+/** Reassigns a top-level task to a different list, appending it at the end
+ *  (matching createTask's ordering). Subtasks move with their parent —
+ *  otherwise they'd be orphaned in the old list (getSubtasks filters by both
+ *  parentId and listId). */
+export async function moveTask(taskId: string, fromListId: string, toListId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, fromListId, userId, tenantId);
+  await assertListOwnership(db, toListId, userId, tenantId);
+  if (fromListId === toListId) return;
+
+  const siblings = await db
+    .select({ sortOrder: tasksItems.sortOrder })
+    .from(tasksItems)
+    .where(
+      and(
+        eq(tasksItems.listId, toListId),
+        eq(tasksItems.tenantId, tenantId),
+        isNull(tasksItems.parentId),
+      ),
+    );
+  const maxOrder = siblings.reduce((m, t) => Math.max(m, t.sortOrder), -1);
+  const ts = now();
+
+  await db
+    .update(tasksItems)
+    .set({ listId: toListId, sortOrder: maxOrder + 1, updatedAt: ts })
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+
+  await db
+    .update(tasksItems)
+    .set({ listId: toListId, updatedAt: ts })
+    .where(and(eq(tasksItems.parentId, taskId), eq(tasksItems.tenantId, tenantId)));
+}
+
+export async function setDueDate(
+  taskId: string,
+  listId: string,
+  dueDate: string | null,
+  dueTime: string | null,
+) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, listId, userId, tenantId);
+  await db
+    .update(tasksItems)
+    // Due time is only meaningful with a due date; clear it when the date clears.
+    .set({ dueDate, dueTime: dueDate ? dueTime : null, updatedAt: now() })
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+}
+
+export async function toggleFavorite(taskId: string, listId: string, favorite: boolean) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, listId, userId, tenantId);
+  await db
+    .update(tasksItems)
+    .set({ favorite, updatedAt: now() })
     .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
 }
 

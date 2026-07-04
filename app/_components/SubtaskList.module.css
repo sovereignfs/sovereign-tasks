@@ -1,8 +1,36 @@
 .root {
-  padding: 0 var(--sv-space-2) var(--sv-space-2) calc(var(--sv-space-6) + 24px);
+  /* Aligns subtask checkboxes under the parent task's title: TaskItem's .row
+     left padding (--sv-space-5) + Checkbox's TRUE rendered width + the row's
+     own gap before .main (--sv-space-2).
+     Checkbox's rendered width is 18px (.box) + var(--sv-space-2) (its own
+     internal gap between .box and <label>) + 0 (the label is empty here,
+     label="", but the gap still applies — CSS gap doesn't care that the
+     sibling has no visible content, only that it exists in the DOM). That
+     internal gap was missed in an earlier version of this calc, undercounting
+     by 8px. */
+  padding: 0 var(--sv-space-2) var(--sv-space-2)
+    calc(var(--sv-space-5) + 18px + var(--sv-space-2) + var(--sv-space-2));
   display: flex;
   flex-direction: column;
   gap: var(--sv-space-1);
+}
+
+/* Detail-pane variant (boxedRows): no left indent — that calculated padding
+   above only makes sense for the inline usage, aligning under a specific
+   parent task row's title. The detail pane has no such row to align with;
+   it's just another full-width section like Notes/Due date/List. Also wants
+   a bit more breathing room between bordered cards than the compact inline
+   variant needs between flat rows. */
+.rootBoxed {
+  padding: 0;
+  gap: var(--sv-space-2);
+}
+
+.sectionLabel {
+  font-size: var(--sv-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-color-text-subtle);
 }
 
 .row {
@@ -10,6 +38,15 @@
   align-items: center;
   gap: var(--sv-space-2);
   padding: var(--sv-space-1) 0;
+}
+
+/* Detail-pane variant: bordered card, matching the notes/due-date/list boxes
+   elsewhere in TaskDetailPane, instead of a flat inline row. */
+.rowBoxed {
+  padding: var(--sv-space-2) var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
 }
 
 .row:hover .deleteBtn,
@@ -20,7 +57,7 @@
 .deleteBtn {
   all: unset;
   font-size: 10px;
-  color: var(--sv-color-text-secondary);
+  color: var(--sv-color-text-subtle);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.1s ease, color 0.1s ease;
@@ -28,7 +65,7 @@
 }
 
 .deleteBtn:hover {
-  color: var(--sv-color-error);
+  color: var(--sv-color-error-text);
 }
 
 .addRow {
@@ -36,18 +73,19 @@
 }
 
 .addInput {
+  /* Borderless, matching TasksPane's own "Add a task" input one level up —
+     a full-width accent underline here looked disconnected from that
+     established pattern. */
   all: unset;
   font-size: var(--sv-font-size-xs);
   color: var(--sv-color-text-primary);
-  border-bottom: 1px solid var(--sv-color-accent);
   width: 100%;
-  padding-bottom: 1px;
 }
 
 .addBtn {
   all: unset;
   font-size: var(--sv-font-size-xs);
-  color: var(--sv-color-text-secondary);
+  color: var(--sv-color-text-subtle);
   cursor: pointer;
   padding: var(--sv-space-1) 0;
   transition: color 0.1s ease;

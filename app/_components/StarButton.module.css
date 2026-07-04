@@ -1,0 +1,27 @@
+.star {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--sv-radius-sm);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+  /* Dim at rest (discoverable without hover); full when hovered or starred.
+     Dim-always avoids cross-module hover coupling with the row. */
+  opacity: 0.4;
+  transition: opacity 0.1s ease, color 0.1s ease;
+}
+
+.star:hover {
+  color: var(--sv-color-text-primary);
+  opacity: 1;
+}
+
+.on {
+  opacity: 1;
+  color: var(--sv-amber-800);
+}

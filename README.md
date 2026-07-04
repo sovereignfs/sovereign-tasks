@@ -2,7 +2,7 @@
 
 A minimal, privacy-first task manager for [Sovereign](https://github.com/sovereignfs/sovereign).
 
-**Status:** v0.1 — active development  
+**Status:** v0.3 — active development  
 **Plugin ID:** `fs.sovereign.tasks`  
 **Route:** `/tasks`
 
@@ -10,7 +10,9 @@ A minimal, privacy-first task manager for [Sovereign](https://github.com/soverei
 
 ## What it is
 
-A clean, self-hosted alternative to Google Tasks. The UI is intentionally minimal and will support multiple layouts — starting with **Compact** (a focused list view), with Kanban and Visualizer views planned for later milestones. Tasks support subtasks (one level deep), optional notes, completion, and manual drag-reorder.
+A clean, self-hosted alternative to Google Tasks. The UI is intentionally minimal and will support multiple layouts — starting with **Compact** (a focused list view), with Kanban and Visualizer views planned for later milestones.
+
+On the web it's a **three-column home**: list sidebar · task list · task detail. Tasks support subtasks (one level deep), optional notes, completion, manual drag-reorder (lists and tasks), **due dates** (via a custom calendar picker, with overdue styling), a **star/favourite** toggle, per-list **filters** (All / Active / Overdue) with a collapsible Completed section, **cross-list search**, and per-list **colour**. The detail pane (opened by selecting a task) is where notes, due date, subtasks, and a task's **list** (move it to a different list) are edited.
 
 Sovereign Tasks runs on your own Sovereign instance. Users sign in with their Sovereign account; data is stored on and synced through your instance server.
 
@@ -33,11 +35,13 @@ The plugin is developed as a `.local` workspace member inside the platform monor
 pnpm dev   # runtime on :3000; plugin routes live at /tasks
 ```
 
-After changing the database schema, generate and apply a migration:
+After changing the database schema (`app/_db/schema.ts`), hand-author a matching
+migration — there is no generate step. Add a numbered SQL file under
+`migrations/sqlite/` following the existing files (e.g. `0001_add_favorite.sql`),
+append an entry to `migrations/sqlite/meta/_journal.json`, then apply it without
+restarting the dev server:
 
 ```bash
-# Write a new migration file under migrations/sqlite/
-# Then apply it without restarting the dev server:
 sv plugin migrate fs.sovereign.tasks
 ```
 

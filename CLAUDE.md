@@ -67,11 +67,16 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 
 | Milestone | TSK IDs  | Status  | Description                                          |
 | --------- | -------- | ------- | ---------------------------------------------------- |
-| v0.1      | 01–09    | current | Private lists, task/subtask CRUD, completion, sort   |
-| v0.2      | 10–14    | future  | Collaboration — requires `sdk.directory` (sv-RFC 0041)  |
-| v0.3      | 15–21    | future  | Due dates, filters, cross-list search, bulk actions     |
+| v0.1      | 01–09    | shipped | Private lists, task/subtask CRUD, completion, sort   |
+| v0.2      | 10–14    | blocked | Collaboration — requires `sdk.directory` (sv-RFC 0041)  |
+| v0.3      | 15–21    | partial | Due dates ✅, overdue ✅, filters ✅, search ✅; keyboard shortcuts + bulk actions pending |
 | v0.4      | 22–25    | future  | Recurrence via `rrule` (sv-RFC 5545)                    |
 | v1.0      | —        | future  | Polish, docs, reference implementation               |
+
+**TSK-26 (star/favourite)** and **TSK-27 (move a task to a different list, from
+the detail pane)** shipped ahead of phasing alongside the three-column web home.
+The three-column layout, due dates, filters, and cross-list search all landed
+early — see `roadmap.md` for per-requirement status.
 
 **Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
@@ -80,8 +85,15 @@ Console admin user routes as a workaround.
 
 - Consume `@sovereignfs/ui` components and `--sv-*` tokens exclusively.
 - Never hardcode colours, spacing, or radii — always reference tokens.
-- Two-panel layout on desktop (list sidebar left, task pane right).
-- Stacked (list → task) on mobile.
+- **Three-column layout on web:** list sidebar (col 1) · task list (col 2) ·
+  task detail (col 3). The detail pane is driven by the `?task=<id>` search
+  param on `/tasks/[listId]`; it collapses below ~900px. Select a task via
+  `<Link href="?task=id">`; close with `<Link replace href="/tasks/[listId]">`.
+- List management (rename, colour, delete) lives in the col-1 row `⋯` menu.
+  Colour is the one sanctioned splash in the monochrome UI — the fixed swatch
+  set is in `app/_lib/colors.ts`; it renders only as the small list dot.
+- Stacked (list → task) on mobile; the mobile detail sheet is a later,
+  separately-specced direction.
 
 ### Views
 
@@ -111,7 +123,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.1.0**
+Current version: **0.3.0**
 
 ## Running locally
 
@@ -127,7 +139,7 @@ installed via `sv plugin add` and the platform hot-reloads it.
 
 ## Open questions (from spec)
 
-1. **List color palette** — fixed set of `--sv-*` primitive token swatches
-   recommended over arbitrary hex. Decided: fixed set when v0.2 ships.
+1. **List color palette** — ✅ Resolved & shipped. Fixed set of `--sv-*` swatches
+   (`LIST_SWATCHES` in `app/_lib/colors.ts`), not arbitrary hex.
 2. **Assignment notifications** — out of scope v1; data model must not preclude it.
 3. **Google Tasks import** — out of scope v1; v1.1 candidate.
