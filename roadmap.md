@@ -9,7 +9,7 @@ Private lists and tasks for a single user. No sharing.
 | ID | Requirement | Status |
 | --- | --- | --- |
 | TSK-01 | Create, rename, and delete lists | ✅ |
-| TSK-02 | List color for visual distinction | 🔲 |
+| TSK-02 | List color for visual distinction | ✅ |
 | TSK-03 | Deleting a list deletes all tasks within it | ✅ |
 | TSK-04 | Create, edit, and delete tasks | ✅ |
 | TSK-05 | Tasks have title (required) and notes (optional) | ✅ |
@@ -26,7 +26,20 @@ TSK-10 through TSK-14: shared lists, membership roles, task assignment, member r
 
 ## v0.3 — Due dates and power-user features
 
-TSK-15 through TSK-21: due dates, overdue visual state, per-list filters, cross-list search, keyboard shortcuts, bulk select/delete/move.
+Due dates, filters, and cross-list search landed early — alongside the
+three-column web home — ahead of the original phasing. Keyboard shortcuts and
+bulk actions remain the open items in this milestone.
+
+| ID | Requirement | Status |
+| --- | --- | --- |
+| TSK-15 | Due date (date, or date + time) | ✅ |
+| TSK-16 | Overdue tasks visually distinguished | ✅ |
+| TSK-17 | Filter: All / Active / Overdue, plus a Completed section | ✅ |
+| TSK-18 | Cross-list search by task title | ✅ |
+| TSK-19 | Keyboard shortcuts for common actions | 🔲 |
+| TSK-20 | Bulk select + delete | 🔲 |
+| TSK-21 | Bulk select + move to another list | 🔲 |
+| TSK-26 | Star/favourite a task (added ahead of phasing) | ✅ |
 
 ## v0.4 — Recurrence
 

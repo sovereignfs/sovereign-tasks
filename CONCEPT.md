@@ -10,7 +10,7 @@ A clean, self-hosted alternative to Google Tasks. — not a Todoist clone.
 
 **Privacy by default.** Tasks are private to the user who created them. Sharing is opt-in and scoped to explicit list membership (v0.2+). Data lives on your own Sovereign instance — no telemetry, no third-party services, no data leaving infrastructure you control.
 
-**Earn your complexity.** Recurrence, due dates, filters, and bulk actions each solve a real problem for a real user. They land in later milestones, not in v0.1, because the core experience must be right first.
+**Earn your complexity.** Due dates, filters, cross-list search, and favourites each solve a real problem for a real user — they landed only once the core (private lists, tasks, subtasks, completion, sort) was solid, and only in a way that stays out of the way until you reach for them. Recurrence and bulk actions remain later milestones, and collaboration waits on the platform's user-directory SDK.
 
 **Own your data.** The plugin stores everything in an isolated SQLite database on the user's instance. It participates in Sovereign's data export/deletion hooks (via sv-RFC 0052 when available) so users can leave without leaving their data behind.
 

@@ -161,6 +161,7 @@ selection surface. Do not call Console/admin user routes.
 | TSK-19 | Keyboard shortcuts for common actions: new task, complete task, navigate between lists. |
 | TSK-20 | Bulk select tasks and delete selected.                                                  |
 | TSK-21 | Bulk select tasks and move selected to another list.                                    |
+| TSK-26 | Star/favourite a task (toggle on the row and in the detail pane). Added ahead of phasing. |
 
 ### v0.4 — Recurrence
 
@@ -384,19 +385,28 @@ User deletion policy:
 Tasks consumes `@sovereignfs/ui` (components and `--sv-*` tokens) exclusively —
 no hardcoded colours, spacing, or radii.
 
-**Layout:** Two-panel on desktop — list sidebar on the left, task pane on the
-right. Collapses to stacked (list view → task view) on mobile.
+**Layout:** Three-column on web — list sidebar (col 1) · task list (col 2) ·
+task detail (col 3). The detail pane is driven by the `?task=<id>` search param
+on `/tasks/[listId]` and collapses below ~900px; the task list and detail keep
+recessed grey flanks around a white centre pane. The plugin renders full-bleed
+via `data-plugin-fullbleed` (the shell drops its content padding for opted-in
+plugins). Collapses to stacked (list → task) on mobile; the mobile detail sheet
+is a later, separately-specced direction.
 
 **Views:** v0.1 renders the **Compact** view only (`kind: "compact"`) — a focused
 linear list. The data model reserves saved view metadata for three later variants:
 **Kanban Compact** (`kanban_compact`), **Kanban** (`kanban`), and **Visualizer**
 (`visualizer`). Those variants are not part of v0.1.
 
-**Net-new primitives likely needed in `packages/ui`:** drag-handle row (for sort
-reorder), checkbox with animated strike-through label, date/time picker, bulk
-action bar (floating, appears on selection), recurrence pattern editor (v0.4).
-Drive these into `packages/ui` rather than building them inline — they are broadly
-reusable across plugins.
+**Primitives.** The drag-handle row and strike-through checkbox come from
+`packages/ui` (`DragHandleRow`, `Checkbox`). The due-date control is built
+in-plugin as a `Popover` wrapping native `<input type="date">`/`<input
+type="time">` plus quick-date buttons, and the subtask progress ring is a small
+in-plugin SVG — kept local until a second consumer justifies promoting them.
+Still likely to belong in `packages/ui` when their milestones land: a bulk action
+bar (floating, appears on selection; v0.3 bulk actions) and a recurrence pattern
+editor (v0.4). Drive those into `packages/ui` rather than building them inline —
+they are broadly reusable across plugins.
 
 ## Build plan
 
@@ -450,9 +460,10 @@ external plugin developers.
 
 ## Open questions
 
-1. **List color palette.** Use a fixed set of swatches derived from `--sv-*`
-   primitive tokens (simpler, theme-safe, consistent), or allow arbitrary hex
-   (more flexible, harder to ensure contrast)? Fixed set recommended.
+1. **List color palette.** ✅ **Resolved.** A fixed set of swatches derived from
+   `--sv-*` primitive tokens (theme-safe, consistent) over arbitrary hex. Shipped
+   as `LIST_SWATCHES` in `app/_lib/colors.ts` (grey/green/blue/amber/red); the
+   stored value is the swatch key and renders only as the small list dot.
 2. **Assignment notifications.** In-app notification when a task is assigned to
    you is out of scope for v1 but the data model must not preclude it. Note for
    v1.1 planning.

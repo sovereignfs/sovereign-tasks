@@ -67,11 +67,15 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 
 | Milestone | TSK IDs  | Status  | Description                                          |
 | --------- | -------- | ------- | ---------------------------------------------------- |
-| v0.1      | 01–09    | current | Private lists, task/subtask CRUD, completion, sort   |
-| v0.2      | 10–14    | future  | Collaboration — requires `sdk.directory` (sv-RFC 0041)  |
-| v0.3      | 15–21    | future  | Due dates, filters, cross-list search, bulk actions     |
+| v0.1      | 01–09    | shipped | Private lists, task/subtask CRUD, completion, sort   |
+| v0.2      | 10–14    | blocked | Collaboration — requires `sdk.directory` (sv-RFC 0041)  |
+| v0.3      | 15–21    | partial | Due dates ✅, overdue ✅, filters ✅, search ✅; keyboard shortcuts + bulk actions pending |
 | v0.4      | 22–25    | future  | Recurrence via `rrule` (sv-RFC 5545)                    |
 | v1.0      | —        | future  | Polish, docs, reference implementation               |
+
+**TSK-26 (star/favourite)** shipped ahead of phasing alongside the three-column
+web home. The three-column layout, due dates, filters, and cross-list search all
+landed early — see `roadmap.md` for per-requirement status.
 
 **Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
@@ -134,7 +138,7 @@ installed via `sv plugin add` and the platform hot-reloads it.
 
 ## Open questions (from spec)
 
-1. **List color palette** — fixed set of `--sv-*` primitive token swatches
-   recommended over arbitrary hex. Decided: fixed set when v0.2 ships.
+1. **List color palette** — ✅ Resolved & shipped. Fixed set of `--sv-*` swatches
+   (`LIST_SWATCHES` in `app/_lib/colors.ts`), not arbitrary hex.
 2. **Assignment notifications** — out of scope v1; data model must not preclude it.
 3. **Google Tasks import** — out of scope v1; v1.1 candidate.
