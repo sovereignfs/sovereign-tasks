@@ -1,15 +1,13 @@
 'use client';
 
+import { Popover } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
-import { createList, deleteList, updateList } from './_lib/actions';
+import { createList, deleteList, updateList, updateListColor } from './_lib/actions';
+import { LIST_SWATCHES, listDotColor } from './_lib/colors';
+import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
-
-interface ListRow {
-  id: string;
-  title: string;
-}
 
 interface Props {
   lists: ListRow[];
@@ -18,7 +16,8 @@ interface Props {
 type ListAction =
   | { type: 'add'; list: ListRow }
   | { type: 'delete'; id: string }
-  | { type: 'rename'; id: string; title: string };
+  | { type: 'rename'; id: string; title: string }
+  | { type: 'color'; id: string; color: string | null };
 
 function listsReducer(state: ListRow[], action: ListAction): ListRow[] {
   switch (action.type) {
@@ -28,21 +27,22 @@ function listsReducer(state: ListRow[], action: ListAction): ListRow[] {
       return state.filter((l) => l.id !== action.id);
     case 'rename':
       return state.map((l) => (l.id === action.id ? { ...l, title: action.title } : l));
+    case 'color':
+      return state.map((l) => (l.id === action.id ? { ...l, color: action.color } : l));
   }
 }
 
 export default function ListSidebar({ lists: initialLists }: Props) {
   const pathname = usePathname();
   const router = useRouter();
-  // Server props are the source of truth (re-rendered after router.refresh());
-  // useOptimistic layers pending mutations on top and resets to the fresh base
-  // automatically — no manual reconciliation.
   const [lists, applyListAction] = useOptimistic(initialLists, listsReducer);
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [_isPending, startTransition] = useTransition();
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [, startTransition] = useTransition();
   const addInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,28 +57,26 @@ export default function ListSidebar({ lists: initialLists }: Props) {
     }
   }, [editingId]);
 
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (q) router.push(`/tasks/search?q=${encodeURIComponent(q)}`);
+  }
+
   function handleCreate() {
     const trimmed = newTitle.trim();
     if (!trimmed) return;
     setNewTitle('');
     setAdding(false);
     startTransition(async () => {
-      // Optimistic placeholder shows for the pending window; createList appends
-      // (sortOrder = max + 1) so the refreshed server order matches this tail.
-      applyListAction({ type: 'add', list: { id: `optimistic-${Date.now()}`, title: trimmed } });
+      applyListAction({
+        type: 'add',
+        list: { id: `optimistic-${Date.now()}`, title: trimmed, color: null, openCount: 0 },
+      });
       const id = await createList(trimmed);
       router.push(`/tasks/${id}`);
       router.refresh();
     });
-  }
-
-  function startRename(e: React.MouseEvent, list: ListRow) {
-    // The rename button lives inside the list <Link>; stop the click from
-    // navigating to the list route.
-    e.preventDefault();
-    e.stopPropagation();
-    setEditingId(list.id);
-    setEditTitle(list.title);
   }
 
   function handleRenameCommit(list: ListRow) {
@@ -93,22 +91,43 @@ export default function ListSidebar({ lists: initialLists }: Props) {
     }
   }
 
-  function handleDelete(e: React.MouseEvent, listId: string) {
-    e.preventDefault();
+  function handleColor(list: ListRow, color: string | null) {
+    setMenuOpenId(null);
     startTransition(async () => {
-      applyListAction({ type: 'delete', id: listId });
-      await deleteList(listId);
-      if (pathname === `/tasks/${listId}`) {
-        router.push('/tasks');
-      }
+      applyListAction({ type: 'color', id: list.id, color });
+      await updateListColor(list.id, color);
+      router.refresh();
+    });
+  }
+
+  function handleDelete(list: ListRow) {
+    setMenuOpenId(null);
+    startTransition(async () => {
+      applyListAction({ type: 'delete', id: list.id });
+      await deleteList(list.id);
+      if (pathname === `/tasks/${list.id}`) router.push('/tasks');
       router.refresh();
     });
   }
 
   return (
     <nav className={styles.nav} aria-label="Task lists">
+      <form className={styles.searchRow} onSubmit={submitSearch} role="search">
+        <span className={styles.searchIcon} aria-hidden>
+          ⌕
+        </span>
+        <input
+          className={styles.searchInput}
+          type="search"
+          placeholder="Search tasks…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search tasks"
+        />
+      </form>
+
       <div className={styles.header}>
-        <span className={styles.heading}>My Lists</span>
+        <span className={styles.heading}>My lists</span>
         <button
           type="button"
           className={styles.newBtn}
@@ -159,7 +178,6 @@ export default function ListSidebar({ lists: initialLists }: Props) {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleRenameCommit(list);
                       if (e.key === 'Escape') {
-                        // Reset so the onBlur commit is a no-op, then exit.
                         setEditTitle(list.title);
                         setEditingId(null);
                       }
@@ -171,31 +189,78 @@ export default function ListSidebar({ lists: initialLists }: Props) {
           }
 
           return (
-            <li key={list.id} className={styles.item}>
-              <Link
-                href={`/tasks/${list.id}`}
-                className={[styles.link, active ? styles.active : ''].filter(Boolean).join(' ')}
-              >
+            <li key={list.id} className={[styles.item, active ? styles.active : ''].filter(Boolean).join(' ')}>
+              <Link href={`/tasks/${list.id}`} className={styles.link}>
+                <span
+                  className={styles.dot}
+                  style={{ background: listDotColor(list.color) }}
+                  aria-hidden
+                />
                 <span className={styles.listTitle}>{list.title}</span>
-                <span className={styles.rowActions}>
-                  <button
-                    type="button"
-                    className={styles.rowBtn}
-                    aria-label={`Rename "${list.title}"`}
-                    onClick={(e) => startRename(e, list)}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    className={[styles.rowBtn, styles.deleteBtn].join(' ')}
-                    aria-label={`Delete "${list.title}"`}
-                    onClick={(e) => handleDelete(e, list.id)}
-                  >
-                    ✕
-                  </button>
-                </span>
               </Link>
+              <span className={styles.trail}>
+                {list.openCount > 0 && <span className={styles.count}>{list.openCount}</span>}
+                <Popover
+                  open={menuOpenId === list.id}
+                  onClose={() => setMenuOpenId(null)}
+                  align="right"
+                  width={180}
+                  aria-label={`Actions for "${list.title}"`}
+                  trigger={
+                    <button
+                      type="button"
+                      className={styles.menuBtn}
+                      aria-label={`Actions for "${list.title}"`}
+                      onClick={() => setMenuOpenId((id) => (id === list.id ? null : list.id))}
+                    >
+                      ⋯
+                    </button>
+                  }
+                >
+                  <div className={styles.menu}>
+                    <div className={styles.swatches}>
+                      {LIST_SWATCHES.map((s) => (
+                        <button
+                          key={s.key}
+                          type="button"
+                          className={[styles.swatch, list.color === s.key ? styles.swatchActive : '']
+                            .filter(Boolean)
+                            .join(' ')}
+                          style={{ background: s.token }}
+                          aria-label={`Set colour ${s.label}`}
+                          onClick={() => handleColor(list, s.key)}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        className={styles.swatchClear}
+                        aria-label="No colour"
+                        onClick={() => handleColor(list, null)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.menuItem}
+                      onClick={() => {
+                        setMenuOpenId(null);
+                        setEditingId(list.id);
+                        setEditTitle(list.title);
+                      }}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      type="button"
+                      className={[styles.menuItem, styles.menuDanger].join(' ')}
+                      onClick={() => handleDelete(list)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </Popover>
+              </span>
             </li>
           );
         })}

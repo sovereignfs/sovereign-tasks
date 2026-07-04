@@ -1,0 +1,102 @@
+.emptyWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--sv-space-6);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-5);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.title {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: 500;
+  color: var(--sv-color-text-primary);
+  line-height: 1.4;
+}
+
+.complete {
+  color: var(--sv-color-text-subtle);
+  text-decoration: line-through;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--sv-radius-sm);
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--sv-color-text-subtle);
+  flex-shrink: 0;
+}
+
+.close:hover {
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-primary);
+}
+
+.sectionLabel {
+  font-size: var(--sv-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-color-text-subtle);
+}
+
+.notes {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 80px;
+  padding: var(--sv-space-3);
+  margin-top: calc(-1 * var(--sv-space-2));
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+  color: var(--sv-color-text-primary);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
+  white-space: pre-wrap;
+  resize: vertical;
+}
+
+.notes:focus {
+  border-color: var(--sv-color-accent);
+}
+
+.subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.delete {
+  all: unset;
+  align-self: flex-start;
+  margin-top: var(--sv-space-2);
+  padding: var(--sv-space-2) var(--sv-space-3);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-error-text);
+  border-radius: var(--sv-radius-sm);
+  cursor: pointer;
+}
+
+.delete:hover {
+  background: var(--sv-color-error-surface);
+}

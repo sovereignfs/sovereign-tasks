@@ -1,0 +1,100 @@
+.trigger {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-2);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
+  cursor: pointer;
+  transition: border-color 0.1s ease;
+}
+
+.trigger:hover {
+  border-color: var(--sv-color-border-strong);
+}
+
+.label {
+  font-size: var(--sv-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-color-text-subtle);
+}
+
+.value {
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.placeholder {
+  color: var(--sv-color-text-subtle);
+}
+
+.overdue {
+  color: var(--sv-color-error-text);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-1);
+}
+
+.quick {
+  display: flex;
+  gap: var(--sv-space-1);
+}
+
+.quick button {
+  all: unset;
+  flex: 1;
+  text-align: center;
+  padding: var(--sv-space-1) var(--sv-space-2);
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-primary);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  cursor: pointer;
+}
+
+.quick button:hover {
+  background: var(--sv-color-surface-raised);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-2);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-subtle);
+}
+
+.field input {
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  padding: var(--sv-space-1) var(--sv-space-2);
+  background: var(--sv-color-surface);
+}
+
+.clear {
+  all: unset;
+  text-align: center;
+  padding: var(--sv-space-1);
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-error-text);
+  cursor: pointer;
+  border-radius: var(--sv-radius-sm);
+}
+
+.clear:hover {
+  background: var(--sv-color-error-surface);
+}

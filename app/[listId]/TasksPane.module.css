@@ -2,76 +2,110 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--sv-space-6) var(--sv-space-8);
-  max-width: 680px;
+  padding: var(--sv-space-5) var(--sv-space-5) var(--sv-space-6);
+  overflow-y: auto;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--sv-space-4);
-  gap: var(--sv-space-4);
+  gap: var(--sv-space-3);
+  padding-bottom: var(--sv-space-3);
+  border-bottom: 1px solid var(--sv-color-border);
+  flex-wrap: wrap;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sv-space-2);
+  min-width: 0;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .title {
-  margin: 0;
   font-size: var(--sv-font-size-xl);
   font-weight: 600;
+  margin: 0;
   color: var(--sv-color-text-primary);
-}
-
-.toggleLabel {
-  display: flex;
-  align-items: center;
-  gap: var(--sv-space-2);
-}
-
-.toggleText {
-  font-size: var(--sv-font-size-xs);
-  color: var(--sv-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.count {
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-subtle);
+  flex-shrink: 0;
+}
+
 .addRow {
-  margin-bottom: var(--sv-space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-3) 0;
+  border-bottom: 1px solid var(--sv-color-border);
+}
+
+.addPlus {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--sv-color-text-subtle);
 }
 
 .addInput {
   all: unset;
-  display: block;
-  width: 100%;
+  flex: 1;
   font-size: var(--sv-font-size-sm);
   color: var(--sv-color-text-primary);
-  padding: var(--sv-space-3) var(--sv-space-4);
-  border-radius: var(--sv-radius-md);
-  border: 1px solid var(--sv-color-border);
-  background: var(--sv-color-surface-raised);
-  box-sizing: border-box;
-  transition: border-color 0.15s ease;
-}
-
-.addInput::placeholder {
-  color: var(--sv-color-text-secondary);
-}
-
-.addInput:focus {
-  border-color: var(--sv-color-accent);
-  outline: none;
 }
 
 .taskList {
-  border-radius: var(--sv-radius-md);
-  border: 1px solid var(--sv-color-border);
-  overflow: hidden;
-  background: var(--sv-color-surface);
-  min-height: 80px;
+  display: flex;
+  flex-direction: column;
 }
 
 .empty {
   padding: var(--sv-space-6) var(--sv-space-4);
   font-size: var(--sv-font-size-sm);
-  color: var(--sv-color-text-secondary);
+  color: var(--sv-color-text-subtle);
   text-align: center;
   margin: 0;
+}
+
+.completed {
+  margin-top: var(--sv-space-4);
+}
+
+.completedHeader {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--sv-space-2);
+  font-size: var(--sv-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+  border-bottom: 1px solid var(--sv-color-border);
+}
+
+.completedCount {
+  color: var(--sv-color-text-subtle);
+}
+
+.completedChevron {
+  margin-left: auto;
+  font-size: 10px;
 }

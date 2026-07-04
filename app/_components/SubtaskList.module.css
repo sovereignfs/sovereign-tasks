@@ -20,7 +20,7 @@
 .deleteBtn {
   all: unset;
   font-size: 10px;
-  color: var(--sv-color-text-secondary);
+  color: var(--sv-color-text-subtle);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.1s ease, color 0.1s ease;
@@ -28,7 +28,7 @@
 }
 
 .deleteBtn:hover {
-  color: var(--sv-color-error);
+  color: var(--sv-color-error-text);
 }
 
 .addRow {
@@ -47,7 +47,7 @@
 .addBtn {
   all: unset;
   font-size: var(--sv-font-size-xs);
-  color: var(--sv-color-text-secondary);
+  color: var(--sv-color-text-subtle);
   cursor: pointer;
   padding: var(--sv-space-1) 0;
   transition: color 0.1s ease;

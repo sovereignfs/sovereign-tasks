@@ -1,0 +1,11 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sv-color-text-subtle);
+}
+
+.label {
+  font-size: var(--sv-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,31 @@
+.inner {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+}
+
+.listCol {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  /* The centre pane stays white between the two recessed grey flanks. */
+  background: var(--sv-color-surface);
+}
+
+.detailCol {
+  width: 340px;
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid var(--sv-color-border);
+  /* Recessed grey flank, matching the list sidebar (see layout.module.css). */
+  background: color-mix(in srgb, var(--sv-color-surface-sunken), var(--sv-color-text-primary) 3%);
+}
+
+/* Below three-column width, drop the detail pane (mobile sheet lands later). */
+@media (max-width: 900px) {
+  .detailCol {
+    display: none;
+  }
+}
