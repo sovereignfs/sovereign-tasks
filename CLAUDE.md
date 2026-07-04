@@ -80,8 +80,15 @@ Console admin user routes as a workaround.
 
 - Consume `@sovereignfs/ui` components and `--sv-*` tokens exclusively.
 - Never hardcode colours, spacing, or radii — always reference tokens.
-- Two-panel layout on desktop (list sidebar left, task pane right).
-- Stacked (list → task) on mobile.
+- **Three-column layout on web:** list sidebar (col 1) · task list (col 2) ·
+  task detail (col 3). The detail pane is driven by the `?task=<id>` search
+  param on `/tasks/[listId]`; it collapses below ~900px. Select a task via
+  `<Link href="?task=id">`; close with `<Link replace href="/tasks/[listId]">`.
+- List management (rename, colour, delete) lives in the col-1 row `⋯` menu.
+  Colour is the one sanctioned splash in the monochrome UI — the fixed swatch
+  set is in `app/_lib/colors.ts`; it renders only as the small list dot.
+- Stacked (list → task) on mobile; the mobile detail sheet is a later,
+  separately-specced direction.
 
 ### Views
 
@@ -111,7 +118,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.1.0**
+Current version: **0.2.0**
 
 ## Running locally
 

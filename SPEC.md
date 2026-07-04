@@ -299,6 +299,7 @@ v0.1 lists may omit membership rows entirely until collaboration lands.
 | `assignee_id`     | string?    | Nullable. Added v0.2. Only meaningful within shared lists.                         |
 | `title`           | string     |                                                                                    |
 | `notes`           | text?      | Nullable.                                                                          |
+| `favorite`        | boolean    | Starred flag. Default false. Surfaced as the star toggle.                          |
 | `due_date`        | date?      | Nullable. Added v0.3.                                                              |
 | `due_time`        | time?      | Nullable. Requires `due_date`. Added v0.3.                                         |
 | `completed_at`    | timestamp? | Nullable. Set on completion, cleared on reopen.                                    |
@@ -463,6 +464,7 @@ external plugin developers.
 
 | Version | Date     | Change                                                                              |
 | ------- | -------- | ----------------------------------------------------------------------------------- |
+| 0.4     | Jul 2026 | Three-column web home (lists · tasks · detail); due dates, filters, cross-list search, and a `favorite` column landed ahead of the original phasing. Collaboration and recurrence remain deferred. |
 | 0.3     | Jun 2026 | Narrowed v0.1 to private tasks; moved collaboration after user-directory support.   |
 | 0.2     | Jun 2026 | Added manifest `icon` field; added missing `tenant_id` to `tasks_list_members`.     |
 | 0.1     | Jun 2026 | Initial draft — feature set designed from Google Tasks analysis and design session. |
