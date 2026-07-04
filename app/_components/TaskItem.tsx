@@ -79,9 +79,18 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
             {task.title}
           </span>
           {task.notes && <span className={styles.note}>{task.notes}</span>}
-          {task.dueDate && (
-            <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
-              {formatDueDate(task.dueDate, task.dueTime)}
+          {(task.dueDate || task.recurrenceRule) && (
+            <span className={styles.dueRow}>
+              {task.dueDate && (
+                <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
+                  {formatDueDate(task.dueDate, task.dueTime)}
+                </span>
+              )}
+              {task.recurrenceRule && (
+                <span className={styles.repeatIndicator} aria-label="Repeats">
+                  <Icon name="rotate-ccw" size="sm" aria-hidden />
+                </span>
+              )}
             </span>
           )}
         </Link>

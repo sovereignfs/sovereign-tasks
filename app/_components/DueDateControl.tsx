@@ -8,6 +8,7 @@ import { formatDueDate, isOverdue, quickDates } from '../_lib/date';
 import CalendarGrid from './CalendarGrid';
 import CalendarIcon from './CalendarIcon';
 import styles from './DueDateControl.module.css';
+import type { EditScope } from './useEditScope';
 
 // Matches the "No due date" trigger's rendered width exactly: the detail pane
 // is a fixed 340px column (see [listId]/page.module.css), and TaskDetailPane's
@@ -22,9 +23,19 @@ interface Props {
   dueDate: string | null;
   dueTime: string | null;
   completedAt: number | null;
+  /** TSK-24 gate — from TaskDetailPane's useEditScope. Resolves straight to
+   *  'this' for non-recurring tasks (the common case), no prompt shown. */
+  requestScope: (onConfirm: (scope: EditScope) => void) => void;
 }
 
-export default function DueDateControl({ taskId, listId, dueDate, dueTime, completedAt }: Props) {
+export default function DueDateControl({
+  taskId,
+  listId,
+  dueDate,
+  dueTime,
+  completedAt,
+  requestScope,
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
@@ -34,9 +45,11 @@ export default function DueDateControl({ taskId, listId, dueDate, dueTime, compl
   // picking a date reveals the (now relevant) time field inline, rather than
   // closing and forcing a reopen to set a time.
   function commit(date: string | null, time: string | null) {
-    startTransition(async () => {
-      await setDueDate(taskId, listId, date, time);
-      router.refresh();
+    requestScope((scope) => {
+      startTransition(async () => {
+        await setDueDate(taskId, listId, date, time, scope);
+        router.refresh();
+      });
     });
   }
 

@@ -112,6 +112,12 @@
   max-width: 100%;
 }
 
+.dueRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+}
+
 .due {
   font-size: var(--sv-font-size-xs);
   color: var(--sv-color-text-subtle);
@@ -120,6 +126,11 @@
 
 .overdue {
   color: var(--sv-color-error-text);
+}
+
+.repeatIndicator {
+  display: inline-flex;
+  color: var(--sv-color-text-subtle);
 }
 
 .right {
