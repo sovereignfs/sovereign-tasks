@@ -22,7 +22,7 @@ export default function ProgressRing({ done, total }: Props) {
           cy="9"
           r={R}
           fill="none"
-          stroke="var(--sv-color-text-subtle)"
+          stroke="var(--sv-color-accent)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeDasharray={`${filled} ${CIRC - filled}`}

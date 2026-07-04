@@ -2,7 +2,12 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--sv-space-5) var(--sv-space-5) var(--sv-space-6);
+  /* No horizontal padding here — each section below (.header, .addRow, task
+     rows via TaskItem's own .row, .completedHeader, .empty) applies the same
+     --sv-space-5 left/right inset itself. This leaves room for each task
+     row's floating drag handle to live inside that shared indent without
+     nesting it deeper than the header/add-row (see TaskItem.module.css). */
+  padding: var(--sv-space-5) 0 var(--sv-space-6);
   overflow-y: auto;
 }
 
@@ -11,7 +16,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sv-space-3);
-  padding-bottom: var(--sv-space-3);
+  padding: 0 var(--sv-space-5) var(--sv-space-3);
   border-bottom: 1px solid var(--sv-color-border);
   flex-wrap: wrap;
 }
@@ -51,7 +56,7 @@
   display: flex;
   align-items: center;
   gap: var(--sv-space-2);
-  padding: var(--sv-space-3) 0;
+  padding: var(--sv-space-3) var(--sv-space-5);
   border-bottom: 1px solid var(--sv-color-border);
 }
 
@@ -74,7 +79,7 @@
 }
 
 .empty {
-  padding: var(--sv-space-6) var(--sv-space-4);
+  padding: var(--sv-space-6) var(--sv-space-5);
   font-size: var(--sv-font-size-sm);
   color: var(--sv-color-text-subtle);
   text-align: center;
@@ -92,7 +97,7 @@
   gap: var(--sv-space-1);
   width: 100%;
   box-sizing: border-box;
-  padding: var(--sv-space-2);
+  padding: var(--sv-space-2) var(--sv-space-5);
   font-size: var(--sv-font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;

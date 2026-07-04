@@ -1,6 +1,6 @@
 'use client';
 
-import { Checkbox, DragHandleRow } from '@sovereignfs/ui';
+import { Checkbox, Icon } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
 import type { TaskRow } from '../_lib/types';
+import GripIcon from './GripIcon';
 import ProgressRing from './ProgressRing';
 import StarButton from './StarButton';
 import SubtaskList from './SubtaskList';
@@ -45,58 +46,76 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
     <div
       ref={setNodeRef}
       style={style}
-      className={[styles.wrapper, selected ? styles.selected : ''].filter(Boolean).join(' ')}
+      className={[
+        styles.wrapper,
+        selected ? styles.selected : '',
+        isDragging ? styles.dragging : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
-      <DragHandleRow handleProps={{ ...attributes, ...listeners }} isDragging={isDragging}>
-        <div className={styles.row}>
-          <Checkbox
-            checked={isComplete}
-            onChange={handleToggle}
-            label=""
-            disabled={pending}
-            aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
-          />
+      <button
+        type="button"
+        className={styles.dragHandle}
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <GripIcon />
+      </button>
+      <div className={styles.row}>
+        <Checkbox
+          checked={isComplete}
+          onChange={handleToggle}
+          label=""
+          disabled={pending}
+          aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
+        />
 
-          <Link href={detailHref} className={styles.main}>
-            <span
-              className={[styles.title, isComplete ? styles.complete : ''].filter(Boolean).join(' ')}
-            >
-              {task.title}
+        <Link href={detailHref} className={styles.main}>
+          <span
+            className={[styles.title, isComplete ? styles.complete : ''].filter(Boolean).join(' ')}
+          >
+            {task.title}
+          </span>
+          {task.notes && <span className={styles.note}>{task.notes}</span>}
+          {task.dueDate && (
+            <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
+              {formatDueDate(task.dueDate, task.dueTime)}
             </span>
-            {task.notes && <span className={styles.note}>{task.notes}</span>}
-            {task.dueDate && (
-              <span
-                className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}
-              >
-                {formatDueDate(task.dueDate, task.dueTime)}
-              </span>
-            )}
-          </Link>
+          )}
+        </Link>
 
-          <div className={styles.right}>
-            <StarButton
-              taskId={task.id}
-              listId={task.listId}
-              favorite={task.favorite}
-              onMutated={onMutated}
-            />
-            {hasSubtasks && (
-              <button
-                type="button"
-                className={styles.ringBtn}
-                aria-label={expanded ? 'Hide subtasks' : 'Show subtasks'}
-                aria-expanded={expanded}
-                onClick={() => setExpanded((v) => !v)}
-              >
-                <ProgressRing done={task.subtaskDoneCount} total={task.subtaskCount} />
-              </button>
-            )}
-            <Link href={detailHref} className={styles.chevron} aria-label="Open details">
-              ›
-            </Link>
-          </div>
+        <div className={styles.right}>
+          {hasSubtasks && (
+            <button
+              type="button"
+              className={styles.ringBtn}
+              aria-label={expanded ? 'Hide subtasks' : 'Show subtasks'}
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <ProgressRing done={task.subtaskDoneCount} total={task.subtaskCount} />
+              <Icon
+                name={expanded ? 'chevron-up' : 'chevron-down'}
+                size="sm"
+                aria-hidden
+                className={styles.subtaskChevron}
+              />
+            </button>
+          )}
+          {/* Always last (rightmost) so its position stays fixed whether or
+              not the subtask cluster above is present — .main's flex:1
+              already pushes .right flush to the row's edge, so ordering this
+              last is enough; no reserved space needed. */}
+          <StarButton
+            taskId={task.id}
+            listId={task.listId}
+            favorite={task.favorite}
+            onMutated={onMutated}
+          />
         </div>
-      </DragHandleRow>
+      </div>
 
       {expanded && (
         <SubtaskList
@@ -104,6 +123,8 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
           listId={task.listId}
           showCompleted={showCompleted}
           parentCompletedAt={task.completedAt}
+          parentSubtaskCount={task.subtaskCount}
+          parentSubtaskDoneCount={task.subtaskDoneCount}
           onMutated={onMutated}
         />
       )}

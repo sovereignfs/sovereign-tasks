@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { createList, deleteList, reorderLists, updateList, updateListColor } from './_lib/actions';
+import GripIcon from './_components/GripIcon';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
 import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
@@ -236,7 +237,12 @@ export default function ListSidebar({ lists: initialLists }: Props) {
         </div>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        id="lists-dnd"
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={lists.map((l) => l.id)} strategy={verticalListSortingStrategy}>
           <ul className={styles.list}>
             {lists.map((list) => (
@@ -441,18 +447,5 @@ function ListItem({
         </span>
       </div>
     </li>
-  );
-}
-
-/** Matches @sovereignfs/ui's DragHandleRow icon, reproduced locally since this
- *  row uses an absolutely-positioned handle (no reserved gutter) rather than
- *  DragHandleRow's flex layout — see the sidebar row-layout brainstorm. */
-function GripIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      {[3, 7, 11].map((cy) =>
-        [4, 10].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.2} fill="currentColor" />),
-      )}
-    </svg>
   );
 }

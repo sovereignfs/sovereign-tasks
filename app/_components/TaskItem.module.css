@@ -1,4 +1,7 @@
 .wrapper {
+  /* Relative anchor for the floating drag handle (no reserved gutter — see
+     .dragHandle). Mirrors ListSidebar's .item. */
+  position: relative;
   border-bottom: 1px solid var(--sv-color-border);
 }
 
@@ -10,11 +13,52 @@
   background: var(--sv-color-surface-raised);
 }
 
+.dragging {
+  opacity: 0.5;
+}
+
+.dragHandle {
+  all: unset;
+  position: absolute;
+  left: 3px;
+  /* .row now centers its content (align-items: center), so the checkbox
+     itself is vertically centered in the row regardless of whether it has a
+     note/due-date line below the title — 50% of the wrapper tracks it
+     correctly again. (A fixed offset was needed only while .row used
+     align-items: flex-start.) */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sv-color-text-subtle);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  border-radius: var(--sv-radius-sm);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.wrapper:hover .dragHandle,
+.wrapper:focus-within .dragHandle,
+.dragging .dragHandle {
+  opacity: 1;
+}
+
 .row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sv-space-2);
-  padding: var(--sv-space-3) var(--sv-space-2);
+  /* Left padding matches TasksPane's header/add-row (--sv-space-5) — no
+     reserved drag-handle gutter, so the checkbox lines up with the list dot
+     and the "+" add-task icon above it. Right padding matches too, for the
+     star/ring/chevron cluster. */
+  padding: var(--sv-space-3) var(--sv-space-5);
   min-height: 44px;
 }
 
@@ -89,36 +133,18 @@
   all: unset;
   display: inline-flex;
   align-items: center;
+  gap: var(--sv-space-1);
   cursor: pointer;
   border-radius: var(--sv-radius-sm);
   padding: 2px;
+}
+
+.subtaskChevron {
+  color: var(--sv-color-text-subtle);
+  margin-left: var(--sv-space-1);
 }
 
 .ringBtn:hover {
   background: var(--sv-color-surface-raised);
 }
 
-.chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 24px;
-  font-size: 18px;
-  line-height: 1;
-  text-decoration: none;
-  color: var(--sv-color-text-subtle);
-  border-radius: var(--sv-radius-sm);
-  opacity: 0;
-  transition: opacity 0.1s ease, color 0.1s ease, background-color 0.1s ease;
-}
-
-.chevron:hover {
-  color: var(--sv-color-text-primary);
-  background: var(--sv-color-surface-raised);
-}
-
-.row:hover .chevron,
-.row:focus-within .chevron {
-  opacity: 1;
-}

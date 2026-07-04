@@ -170,7 +170,12 @@ export default function TasksPane({
         />
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        id="tasks-dnd"
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext
           items={activeVisible.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
