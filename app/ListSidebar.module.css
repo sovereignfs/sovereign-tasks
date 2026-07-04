@@ -31,7 +31,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--sv-space-4) var(--sv-space-2);
+  /* Left indent matches .rowInner/.editRow below — keeps the heading aligned
+     with list-row content even though it's a touch wider than --sv-space-4,
+     to leave the drag handle room to breathe (see .dragHandle). */
+  padding: 0 var(--sv-space-4) var(--sv-space-2) var(--sv-space-5);
 }
 
 .heading {
@@ -50,10 +53,8 @@
   width: 22px;
   height: 22px;
   border-radius: var(--sv-radius-sm);
-  font-size: 16px;
   color: var(--sv-color-text-subtle);
   cursor: pointer;
-  line-height: 1;
   transition: background-color 0.1s ease, color 0.1s ease;
 }
 
@@ -83,8 +84,10 @@
 }
 
 .item {
-  display: flex;
-  align-items: center;
+  /* Relative anchor for the floating drag handle (no reserved gutter — the
+     handle overlays the same 16px indent the content already sits at, so
+     rows line up with the "My lists" heading and search box above them). */
+  position: relative;
   transition: background-color 0.1s ease;
 }
 
@@ -100,13 +103,59 @@
   font-weight: 500;
 }
 
+.dragging {
+  opacity: 0.5;
+}
+
+.dragHandle {
+  all: unset;
+  position: absolute;
+  /* left+width leaves a clear ~5px gap before content, which starts at
+     --sv-space-5 (20px, see .rowInner) — was overlapping the dot at the old
+     16px indent. */
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sv-color-text-subtle);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  border-radius: var(--sv-radius-sm);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.item:hover .dragHandle,
+.item:focus-within .dragHandle,
+.dragging .dragHandle {
+  opacity: 1;
+}
+
+.rowInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  /* Right padding matches the header's exactly (--sv-space-4) so the count
+     lines up in the same column as the "+" button above — .menuBtn no longer
+     reserves flex space (see below), so nothing pushes the count off that
+     column. */
+  padding: var(--sv-space-2) var(--sv-space-4) var(--sv-space-2) var(--sv-space-5);
+}
+
 .link {
   display: flex;
   align-items: center;
   gap: var(--sv-space-2);
   flex: 1;
   min-width: 0;
-  padding: var(--sv-space-2) var(--sv-space-2) var(--sv-space-2) var(--sv-space-4);
   text-decoration: none;
   font-size: var(--sv-font-size-sm);
   color: var(--sv-color-text-primary);
@@ -131,17 +180,43 @@
   display: flex;
   align-items: center;
   gap: var(--sv-space-1);
-  padding-right: var(--sv-space-3);
 }
 
 .count {
   font-size: var(--sv-font-size-xs);
   color: var(--sv-color-text-subtle);
   font-variant-numeric: tabular-nums;
+  transition: opacity 0.1s ease;
+  /* The header's "+" is a 16px icon centered in a 22px button, so its glyph
+     sits ~3px left of the button's true right edge. The count has no such
+     wrapper offsetting it — nudge it the same 3px to match the icon's
+     visual edge, not just the padding boundary. */
+  margin-right: 3px;
+}
+
+/* .menuBtn overlays this same corner on hover (see below) — fade the count
+   out so the two never render on top of each other at once. */
+.item:hover .count,
+.item:focus-within .count,
+.menuOpenRow .count {
+  opacity: 0;
 }
 
 .menuBtn {
   all: unset;
+  /* Floats over the row's right corner (mirrors .dragHandle on the left)
+     instead of reserving its own flex width — with no reserved space, the
+     count's flow position lines up exactly with the header's "+" button.
+     The count fades out (see .count rules above) whenever this is visible,
+     so the two never occupy the same corner at the same time.
+
+     right matches the header's own right padding exactly (not an arbitrary
+     small inset) — both buttons are the same 22px box, so matching the
+     offset reproduces the "+" button's exact position, centers included. */
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,35 +232,47 @@
 }
 
 .item:hover .menuBtn,
-.item:focus-within .menuBtn {
+.item:focus-within .menuBtn,
+.menuOpenRow .menuBtn {
   opacity: 1;
 }
 
 .menuBtn:hover {
-  background: var(--sv-color-surface);
+  /* surface-sunken, not surface: .item:hover's background is surface-raised,
+     which equals surface in light mode (both var(--sv-white)) — that hover
+     would have been invisible (same bug fixed on .menuItem elsewhere in this
+     file). */
+  background: var(--sv-color-surface-sunken);
   color: var(--sv-color-text-primary);
 }
 
 .menu {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  /* No extra flex gap between rows — each row's own padding already provides
+     consistent, even spacing (an added gap on top made Rename/Delete look
+     further apart than everything else in the menu). */
   padding: var(--sv-space-1);
 }
 
 .swatches {
   display: flex;
   align-items: center;
+  /* Spread the swatches across the full row instead of clustering left —
+     there are only 5 colours in the design system today (matching
+     packages/ui's primitive families), so this fills the space with what
+     exists rather than leaving dead space on the right. */
+  justify-content: space-between;
   gap: var(--sv-space-1);
-  padding: var(--sv-space-1) var(--sv-space-2) var(--sv-space-2);
+  padding: var(--sv-space-1) var(--sv-space-2);
   border-bottom: 1px solid var(--sv-color-border);
   margin-bottom: var(--sv-space-1);
 }
 
 .swatch {
   all: unset;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 0 0 1px var(--sv-color-border);
@@ -193,20 +280,6 @@
 
 .swatchActive {
   box-shadow: 0 0 0 2px var(--sv-color-accent);
-}
-
-.swatchClear {
-  all: unset;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  font-size: 9px;
-  color: var(--sv-color-text-subtle);
-  cursor: pointer;
-  box-shadow: 0 0 0 1px var(--sv-color-border);
 }
 
 .menuItem {
@@ -219,7 +292,11 @@
 }
 
 .menuItem:hover {
-  background: var(--sv-color-surface-raised);
+  /* surface-sunken, not surface-raised: the popover panel's own background is
+     --sv-color-surface, which equals --sv-color-surface-raised in light mode
+     (both var(--sv-white)) — that hover was invisible. Sunken is genuinely
+     distinct from the panel background in both modes. */
+  background: var(--sv-color-surface-sunken);
 }
 
 .menuDanger {
@@ -231,7 +308,7 @@
 }
 
 .editRow {
-  padding: var(--sv-space-2) var(--sv-space-4);
+  padding: var(--sv-space-2) var(--sv-space-4) var(--sv-space-2) var(--sv-space-5);
   width: 100%;
   box-sizing: border-box;
 }
@@ -241,4 +318,45 @@
   font-size: var(--sv-font-size-xs);
   color: var(--sv-color-text-subtle);
   margin: 0;
+}
+
+.confirmNativeDialog {
+  border: none;
+  border-radius: var(--sv-radius-lg);
+  background: var(--sv-color-surface);
+  box-shadow: var(--sv-shadow-overlay);
+  padding: 0;
+  width: 22rem;
+  max-width: calc(100vw - var(--sv-space-8));
+}
+
+.confirmNativeDialog::backdrop {
+  background: var(--sv-color-scrim);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-6);
+}
+
+.confirmTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: 600;
+  color: var(--sv-color-text-primary);
+}
+
+.confirmText {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+  color: var(--sv-color-text-subtle);
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sv-space-2);
 }
