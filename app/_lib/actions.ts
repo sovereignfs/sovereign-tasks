@@ -1,11 +1,16 @@
 'use server';
 
 import { sdk } from '@sovereignfs/sdk';
-import { and, asc, desc, eq, isNotNull, isNull, like } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNotNull, isNull, like } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
 import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
 import { DEFAULT_LIST_COLOR } from './colors';
+import { nextOccurrence } from './recurrence';
+
+/** "this" edits a single row; "future"/"all" apply to the rest of a recurring
+ *  series (TSK-24) — see applyToSeries below. */
+type EditScope = 'this' | 'future' | 'all';
 
 // DrizzleClient is typed as `unknown` in the SDK (dialect-agnostic contract).
 // We cast to the SQLite type here since the platform default dialect is SQLite.
@@ -180,6 +185,27 @@ async function assertListOwnership(db: Db, listId: string, userId: string, tenan
   if (!rows.length) throw new Error('Not authorized');
 }
 
+/** Applies `patch` across a recurring series (TSK-24's "this and future
+ *  instances" / "all instances"). "future" matches the spec's own wording —
+ *  filter by series_id + due_date >= the edited task's own due_date. */
+async function applyToSeries(
+  db: Db,
+  tenantId: string,
+  seriesId: string,
+  referenceDueDate: string | null,
+  scope: Extract<EditScope, 'future' | 'all'>,
+  patch: Record<string, unknown>,
+) {
+  const conditions = [eq(tasksItems.seriesId, seriesId), eq(tasksItems.tenantId, tenantId)];
+  if (scope === 'future' && referenceDueDate) {
+    conditions.push(gte(tasksItems.dueDate, referenceDueDate));
+  }
+  await db
+    .update(tasksItems)
+    .set({ ...patch, updatedAt: now() })
+    .where(and(...conditions));
+}
+
 export async function getTasks(listId: string) {
   const { db, userId, tenantId } = await getContext();
   await assertListOwnership(db, listId, userId, tenantId);
@@ -311,9 +337,24 @@ export async function updateTask(
   taskId: string,
   listId: string,
   patch: { title?: string; notes?: string },
+  scope: EditScope = 'this',
 ) {
   const { db, userId, tenantId } = await getContext();
   await assertListOwnership(db, listId, userId, tenantId);
+
+  if (scope !== 'this') {
+    const [task] = await db
+      .select({ seriesId: tasksItems.seriesId, dueDate: tasksItems.dueDate })
+      .from(tasksItems)
+      .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+    if (task?.seriesId) {
+      await applyToSeries(db, tenantId, task.seriesId, task.dueDate, scope, patch);
+      return;
+    }
+    // Not actually part of a series (e.g. recurrence was cleared elsewhere) —
+    // fall through to a single-row update below.
+  }
+
   await db
     .update(tasksItems)
     .set({ ...patch, updatedAt: now() })
@@ -359,14 +400,68 @@ export async function setDueDate(
   listId: string,
   dueDate: string | null,
   dueTime: string | null,
+  scope: EditScope = 'this',
 ) {
   const { db, userId, tenantId } = await getContext();
   await assertListOwnership(db, listId, userId, tenantId);
+
+  if (scope !== 'this') {
+    const [task] = await db
+      .select({ seriesId: tasksItems.seriesId, dueDate: tasksItems.dueDate })
+      .from(tasksItems)
+      .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+    if (task?.seriesId) {
+      // Every occurrence in a series has its own calendar date by design —
+      // overwriting them all to this one literal dueDate would collapse the
+      // whole series onto a single day. Only the time-of-day propagates
+      // series-wide; the date itself only ever applies to this one instance.
+      await applyToSeries(db, tenantId, task.seriesId, task.dueDate, scope, {
+        dueTime: dueDate ? dueTime : null,
+      });
+      await db
+        .update(tasksItems)
+        .set({ dueDate, dueTime: dueDate ? dueTime : null, updatedAt: now() })
+        .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+      return;
+    }
+  }
+
   await db
     .update(tasksItems)
     // Due time is only meaningful with a due date; clear it when the date clears.
     .set({ dueDate, dueTime: dueDate ? dueTime : null, updatedAt: now() })
     .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+}
+
+/** Sets or clears a task's recurrence pattern. Assigns a fresh seriesId the
+ *  first time a task becomes recurring; clearing the rule (rule === null)
+ *  detaches the task from its series entirely (seriesId cleared too). */
+export async function setRecurrenceRule(
+  taskId: string,
+  listId: string,
+  rule: string | null,
+  scope: EditScope = 'this',
+) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, listId, userId, tenantId);
+
+  const [task] = await db
+    .select({ seriesId: tasksItems.seriesId, dueDate: tasksItems.dueDate })
+    .from(tasksItems)
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+
+  if (scope === 'this' || !task?.seriesId) {
+    const seriesId = rule ? (task?.seriesId ?? randomUUID()) : null;
+    await db
+      .update(tasksItems)
+      .set({ recurrenceRule: rule, seriesId, updatedAt: now() })
+      .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+    return;
+  }
+
+  const patch: { recurrenceRule: string | null; seriesId?: null } = { recurrenceRule: rule };
+  if (rule === null) patch.seriesId = null;
+  await applyToSeries(db, tenantId, task.seriesId, task.dueDate, scope, patch);
 }
 
 export async function toggleFavorite(taskId: string, listId: string, favorite: boolean) {
@@ -395,6 +490,60 @@ export async function toggleComplete(taskId: string, listId: string, complete: b
     .update(tasksItems)
     .set({ completedAt: complete ? ts : null, updatedAt: ts })
     .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+
+  if (complete) {
+    await spawnNextOccurrenceIfRecurring(db, tenantId, taskId);
+  }
+}
+
+/** Completing a recurring task inserts a new sibling for the next occurrence
+ *  (same list/title/notes/assignee/recurrence_rule/series_id). The new
+ *  instance starts with no subtasks — the spec's own wording for this
+ *  mechanic ("same series_id, recurrence_rule, list, and assignee") doesn't
+ *  mention subtasks, and carrying forward a partially-done checklist
+ *  indefinitely is ambiguous. No-ops when the task isn't recurring, has no
+ *  due date to anchor the next occurrence on, or the series has ended
+ *  (UNTIL/COUNT exhausted). The just-completed row's own recurrenceRule/
+ *  seriesId are left untouched — it stays a historical record of what it was. */
+async function spawnNextOccurrenceIfRecurring(db: Db, tenantId: string, taskId: string) {
+  const [task] = await db
+    .select()
+    .from(tasksItems)
+    .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+  if (!task?.recurrenceRule || !task.dueDate) return;
+
+  const next = nextOccurrence(task.recurrenceRule, task.dueDate);
+  if (!next) return;
+
+  const siblings = await db
+    .select({ sortOrder: tasksItems.sortOrder })
+    .from(tasksItems)
+    .where(
+      and(
+        eq(tasksItems.listId, task.listId),
+        eq(tasksItems.tenantId, tenantId),
+        isNull(tasksItems.parentId),
+      ),
+    );
+  const maxOrder = siblings.reduce((m, t) => Math.max(m, t.sortOrder), -1);
+  const ts = now();
+
+  await db.insert(tasksItems).values({
+    id: randomUUID(),
+    tenantId,
+    listId: task.listId,
+    parentId: null,
+    assigneeId: task.assigneeId,
+    title: task.title,
+    notes: task.notes,
+    dueDate: next,
+    dueTime: task.dueTime,
+    recurrenceRule: task.recurrenceRule,
+    seriesId: task.seriesId,
+    sortOrder: maxOrder + 1,
+    createdAt: ts,
+    updatedAt: ts,
+  });
 }
 
 export async function deleteTask(taskId: string, listId: string) {
