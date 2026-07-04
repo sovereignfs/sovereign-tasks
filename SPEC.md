@@ -462,7 +462,7 @@ external plugin developers.
 
 1. **List color palette.** ✅ **Resolved.** A fixed set of swatches derived from
    `--sv-*` primitive tokens (theme-safe, consistent) over arbitrary hex. Shipped
-   as `LIST_SWATCHES` in `app/_lib/colors.ts` (grey/green/blue/amber/red); the
+   as `LIST_SWATCHES` in `app/_lib/colors.ts` (black/grey/green/blue/amber/red); the
    stored value is the swatch key and renders only as the small list dot.
 2. **Assignment notifications.** In-app notification when a task is assigned to
    you is out of scope for v1 but the data model must not preclude it. Note for

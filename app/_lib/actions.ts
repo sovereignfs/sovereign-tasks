@@ -5,6 +5,7 @@ import { and, asc, desc, eq, isNotNull, isNull, like } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
 import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
+import { DEFAULT_LIST_COLOR } from './colors';
 
 // DrizzleClient is typed as `unknown` in the SDK (dialect-agnostic contract).
 // We cast to the SQLite type here since the platform default dialect is SQLite.
@@ -61,6 +62,9 @@ export async function createList(title: string) {
     tenantId,
     ownerId: userId,
     title: title.trim(),
+    // Colour is mandatory (not a nullable "no colour" state) — every new list
+    // gets the default swatch; the picker never needs a clear option.
+    color: DEFAULT_LIST_COLOR,
     sortOrder: maxOrder + 1,
     createdAt: ts,
     updatedAt: ts,
@@ -83,6 +87,25 @@ export async function createList(title: string) {
   return id;
 }
 
+export async function reorderLists(orderedIds: string[]) {
+  const { db, userId, tenantId } = await getContext();
+  const ts = now();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db
+        .update(tasksLists)
+        .set({ sortOrder: index, updatedAt: ts })
+        .where(
+          and(
+            eq(tasksLists.id, id),
+            eq(tasksLists.tenantId, tenantId),
+            eq(tasksLists.ownerId, userId),
+          ),
+        ),
+    ),
+  );
+}
+
 export async function updateList(listId: string, title: string) {
   const { db, userId, tenantId } = await getContext();
   await db
@@ -97,7 +120,7 @@ export async function updateList(listId: string, title: string) {
     );
 }
 
-export async function updateListColor(listId: string, color: string | null) {
+export async function updateListColor(listId: string, color: string) {
   const { db, userId, tenantId } = await getContext();
   await db
     .update(tasksLists)

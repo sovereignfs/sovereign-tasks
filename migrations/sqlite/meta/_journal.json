@@ -15,6 +15,13 @@
       "when": 1751529600000,
       "tag": "0001_add_favorite",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1751616000000,
+      "tag": "0002_default_list_color",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,11 @@ export const tasksLists = sqliteTable('tasks_lists', {
   tenantId: text('tenant_id').notNull(),
   ownerId: text('owner_id').notNull(),
   title: text('title').notNull(),
-  /** Nullable. Fixed color swatch key (e.g. 'grey-300'). Full palette decided in v0.2. */
+  /** Fixed swatch key (see app/_lib/colors.ts LIST_SWATCHES). Mandatory at the
+   *  app layer — every list gets a colour on create, default 'black'. Column
+   *  stays nullable in SQLite (ALTER COLUMN would need a table rebuild); a
+   *  migration backfills any legacy NULLs and listDotColor() falls back
+   *  defensively. */
   color: text('color'),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: integer('created_at').notNull(),
