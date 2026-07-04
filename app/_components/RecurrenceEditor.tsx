@@ -223,7 +223,7 @@ export default function RecurrenceEditor({ rule, dueDate, onCommit, requestScope
                 checked={draft.count != null}
                 onChange={() => setDraft((d) => ({ ...d, count: d.count ?? 5, until: null }))}
               />
-              After
+              After{' '}
               {draft.count != null && (
                 <input
                   type="number"
@@ -234,7 +234,7 @@ export default function RecurrenceEditor({ rule, dueDate, onCommit, requestScope
                     setDraft((d) => ({ ...d, count: Math.max(1, Number(e.target.value) || 1) }))
                   }
                 />
-              )}
+              )}{' '}
               occurrences
             </label>
           </div>
