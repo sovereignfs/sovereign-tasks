@@ -141,12 +141,13 @@ export default function TaskItem({
             <span className={styles.dueRow}>
               {task.dueDate && (
                 <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
-                  <span aria-hidden="true">📅</span> {formatDueDate(task.dueDate, task.dueTime)}
+                  <Icon name="calendar" size="xs" aria-hidden />
+                  {formatDueDate(task.dueDate, task.dueTime)}
                 </span>
               )}
               {task.recurrenceRule && (
                 <span className={styles.repeatIndicator}>
-                  <Icon name="rotate-ccw" size="sm" aria-hidden />
+                  <Icon name="rotate-ccw" size="xs" aria-hidden />
                   {summaryLabel(task.recurrenceRule)}
                 </span>
               )}
