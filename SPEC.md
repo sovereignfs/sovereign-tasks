@@ -391,8 +391,19 @@ task detail (col 3). The detail pane is driven by the `?task=<id>` search param
 on `/tasks/[listId]` and collapses below ~900px; the task list and detail keep
 recessed grey flanks around a white centre pane. The plugin renders full-bleed
 via `data-plugin-fullbleed` (the shell drops its content padding for opted-in
-plugins). Collapses to stacked (list → task) on mobile; the mobile detail sheet
-is a later, separately-specced direction.
+plugins). Tablet (641–900px) keeps this same layout with the detail pane
+hidden — unchanged, and out of scope for the mobile UI below.
+
+**Mobile (≤640px):** not a squeeze of the desktop layout — a horizontally
+swipeable carousel. Slide 0 is a full-page Lists index (the sidebar's mobile
+equivalent); each following slide is one full list. Opening the app lands on
+the user's first list, not the index; swiping right reveals the index,
+swiping left advances through lists. Task detail and list-management actions
+(rename, colour, delete-entry-point) open as bottom sheets instead of a fixed
+column or popover menu — delete's own confirmation stays a centered dialog at
+every breakpoint. See `CLAUDE.md`'s "Mobile shell" section for the
+implementation model (why the carousel manages its own data independently of
+`page.tsx`'s server fetch, and how `router.refresh()` still reaches it).
 
 **Views:** v0.1 renders the **Compact** view only (`kind: "compact"`) — a focused
 linear list. The data model reserves saved view metadata for three later variants:

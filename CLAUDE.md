@@ -88,13 +88,14 @@ Console admin user routes as a workaround.
 - Never hardcode colours, spacing, or radii — always reference tokens.
 - **Three-column layout on web:** list sidebar (col 1) · task list (col 2) ·
   task detail (col 3). The detail pane is driven by the `?task=<id>` search
-  param on `/tasks/[listId]`; it collapses below ~900px. Select a task via
+  param on `/tasks/[listId]`; it collapses below ~900px (tablet — no detail
+  sheet substitute at this width; unchanged, low priority). Select a task via
   `<Link href="?task=id">`; close with `<Link replace href="/tasks/[listId]">`.
 - List management (rename, colour, delete) lives in the col-1 row `⋯` menu.
   Colour is the one sanctioned splash in the monochrome UI — the fixed swatch
   set is in `app/_lib/colors.ts`; it renders only as the small list dot.
-- Stacked (list → task) on mobile; the mobile detail sheet is a later,
-  separately-specced direction.
+- **Mobile (≤640px) is a different UI, not a squeeze of the desktop one** —
+  see "Mobile shell" below.
 
 ### Views
 
@@ -156,6 +157,58 @@ through dedicated server actions (`bulkDeleteTasks`, `bulkMoveTasks` in
 rather than looping the existing single-task `deleteTask`/`moveTask` — avoids
 N round trips for an N-task selection.
 
+## Mobile shell
+
+Below 640px the plugin renders a **completely different component tree**, not
+a CSS squeeze of the desktop one — `app/_lib/useIsMobile.ts`
+(`matchMedia('(max-width: 640px)')`) is the only place in this codebase that
+forks JS behavior on viewport, since nothing else needed to. `layout.tsx`
+delegates to `app/_components/MobileAwareShell.tsx`, which on mobile mounts
+`MobileTasksCarousel.tsx` instead of rendering `children` (page.tsx's
+server-rendered output) at all.
+
+- **Carousel model**: slide 0 is `ListSidebar` full-page (mobile equivalent of
+  the sidebar); slide *n* is `TasksPane` for `lists[n-1]`. A native
+  `scroll-snap-type: x` container gives swipe physics for free — no hand-
+  rolled pointer dragging. Swiping right (finger left→right) reveals the
+  previous slide (toward the Lists index); swiping left advances toward the
+  next list — standard carousel convention. Landing at the bare `/tasks`
+  route puts you on your **first list**, not the Lists index (matches the
+  desktop sidebar+first-list both being visible at once); the index slide is
+  reached only by swiping.
+- **Fully decoupled data, on purpose**: `MobileTasksCarousel` fetches every
+  list's tasks itself via the existing `getTasks`/`getTask`/`getOrCreatePrefs`
+  server actions (already callable straight from client code elsewhere in
+  this plugin), caches them per `listId`, and eagerly prefetches the
+  immediate left/right neighbors on every index change — so a single swipe
+  never shows a loading spinner. This means `page.tsx`'s own server fetch for
+  the routed list runs and is simply unused on mobile (its JSX is never
+  rendered) — a deliberate, accepted redundancy that keeps `TasksPane`/
+  `TaskDetailPane` completely unmodified and lets the carousel's cache survive
+  route changes (a real prop-threaded alternative would force a remount on
+  every swipe-triggered navigation, defeating the "no loading flash" point).
+- **`router.refresh()` still works**: `MobileAwareShell` passes `children`
+  through to the carousel as `refreshSignal` — not to render, purely as a
+  signal. Every `router.refresh()` call already scattered through
+  `TasksPane`/`TaskDetailPane`/etc. gives `children` a new identity, and the
+  carousel's effect keyed on that reference re-fetches the active slide. This
+  is *why* none of those existing mutation handlers needed touching.
+- **Settled-slide detection is a debounced `scroll` listener**, not the
+  `scrollend` event — iOS Safari/WKWebView only gained `scrollend` in 17.4,
+  and older versions are still a live concern per this plugin's iOS PWA
+  history.
+- **Task detail is a `Drawer`** (`@sovereignfs/ui`, the same bottom-sheet
+  component `MobileNav`'s Apps drawer already uses) wrapping the unmodified
+  `TaskDetailPane`, opened/closed by the same `?task=` param convention as
+  desktop. Swiping to a different list slide closes it, since a task's detail
+  only makes sense tied to the slide it came from.
+- **List management** (`ListSidebar.tsx`'s `ListItem`): the `⋯` actions menu,
+  rename, and colour picker each render in a `Drawer` on mobile instead of a
+  `Popover`, gated by the same `useIsMobile()` check — same handlers
+  (`updateList`, `updateListColor`, etc.), different open/close mechanism.
+  **Delete confirmation is untouched at every breakpoint** — it's already a
+  native `<dialog>` that centers correctly regardless of width.
+
 ## Versioning
 
 This plugin follows its own semver, independent of the platform version:
@@ -163,7 +216,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.5.0**
+Current version: **0.6.0**
 
 ## Running locally
 
