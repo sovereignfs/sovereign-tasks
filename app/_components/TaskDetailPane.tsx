@@ -169,6 +169,16 @@ function DetailBody({
         rows={4}
         onChange={(e) => setNotes(e.target.value)}
         onBlur={commitNotes}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            (e.target as HTMLTextAreaElement).blur();
+          }
+          if (e.key === 'Escape') {
+            setNotes(task.notes ?? '');
+            (e.target as HTMLTextAreaElement).blur();
+          }
+        }}
       />
 
       <span className={styles.sectionLabel}>Due date</span>

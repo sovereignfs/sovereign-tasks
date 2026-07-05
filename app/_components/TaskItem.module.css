@@ -30,13 +30,12 @@
   all: unset;
   position: absolute;
   left: 3px;
-  /* .row now centers its content (align-items: center), so the checkbox
-     itself is vertically centered in the row regardless of whether it has a
-     note/due-date line below the title — 50% of the wrapper tracks it
-     correctly again. (A fixed offset was needed only while .row used
-     align-items: flex-start.) */
-  top: 50%;
-  transform: translateY(-50%);
+  /* .row uses align-items: flex-start (checkbox/star/handle all pin to the
+     row's top edge, matching the title's first line, rather than centering
+     against the full row height once notes/due-date lines are present).
+     top = row's own padding-top (--sv-space-3) plus half the gap between
+     the 16px checkbox and this 12px handle, so their centers line up. */
+  top: calc(var(--sv-space-3) + 2px);
   width: 12px;
   height: 12px;
   display: flex;
@@ -61,7 +60,7 @@
 
 .row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sv-space-2);
   /* Left padding matches TasksPane's header/add-row (--sv-space-5) — no
      reserved drag-handle gutter, so the checkbox lines up with the list dot
@@ -148,7 +147,7 @@
 
 .right {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sv-space-1);
   flex-shrink: 0;
 }

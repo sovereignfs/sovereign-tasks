@@ -316,7 +316,8 @@ export async function createTask(listId: string, title: string, parentId?: strin
         parentId ? eq(tasksItems.parentId, parentId) : isNull(tasksItems.parentId),
       ),
     );
-  const maxOrder = siblings.reduce((m, t) => Math.max(m, t.sortOrder), -1);
+  // New tasks go to the top of their sibling group — prepend, don't append.
+  const minOrder = siblings.reduce((m, t) => Math.min(m, t.sortOrder), 0);
   const ts = now();
 
   const id = randomUUID();
@@ -326,7 +327,7 @@ export async function createTask(listId: string, title: string, parentId?: strin
     listId,
     parentId: parentId ?? null,
     title: title.trim(),
-    sortOrder: maxOrder + 1,
+    sortOrder: minOrder - 1,
     createdAt: ts,
     updatedAt: ts,
   });

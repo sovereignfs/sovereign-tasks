@@ -141,7 +141,7 @@ export default function TaskItem({
             <span className={styles.dueRow}>
               {task.dueDate && (
                 <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
-                  {formatDueDate(task.dueDate, task.dueTime)}
+                  <span aria-hidden="true">📅</span> {formatDueDate(task.dueDate, task.dueTime)}
                 </span>
               )}
               {task.recurrenceRule && (
