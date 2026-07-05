@@ -67,6 +67,21 @@ important. `recurrence_rule`/`series_id` columns already existed on
 | TSK-24 | Edit-scope prompt: this / this and future / all | ✅ (title/notes/due-date/rule only) |
 | TSK-25 | Human-readable recurrence pattern in the task UI | ✅ |
 
+## Mobile UI — swipeable lists carousel + bottom sheets
+
+Cross-cutting UI work, not tied to a specific TSK id (like "Layout" in the
+spec, this is described in prose rather than a numbered requirement). Shipped
+ahead of v1.0's "full keyboard navigation" polish pass, following the same
+pattern as TSK-26/27 and v0.4 jumping the queue.
+
+Below 640px the plugin now renders a genuinely different UI, not a squeeze of
+the desktop three-column layout: a swipeable carousel (Lists index slide,
+then one slide per list — landing on the user's first list, not the index)
+and bottom sheets for task detail and list management (rename/colour/delete
+entry point; delete's own confirmation stays a centered dialog). Desktop and
+tablet (641–900px) are unchanged. See `CLAUDE.md`'s "Mobile shell" section for
+the implementation model.
+
 ## v1.0 — Polish and reference implementation
 
 Accessibility audit, full keyboard navigation, documentation, and publication to the Sovereign plugin registry as the canonical reference implementation.

@@ -22,16 +22,7 @@
   background: var(--sv-color-surface);
 }
 
-/* Stack on mobile */
-@media (max-width: 640px) {
-  .shell {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--sv-color-border);
-    overflow-y: visible;
-  }
-}
+/* Below 640px, MobileAwareShell swaps this entire tree for
+   MobileTasksCarousel (a swipeable Lists index + one slide per list) instead
+   of stacking .sidebar above .content — so there is no mobile media query
+   here anymore. See MobileAwareShell.tsx and useIsMobile.ts. */

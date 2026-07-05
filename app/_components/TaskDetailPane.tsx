@@ -13,7 +13,7 @@ import SubtaskList from './SubtaskList';
 import styles from './TaskDetailPane.module.css';
 import { useEditScope } from './useEditScope';
 
-interface DetailTask {
+export interface DetailTask {
   id: string;
   listId: string;
   parentId: string | null;

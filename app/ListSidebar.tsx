@@ -17,13 +17,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Icon, Popover, Tooltip } from '@sovereignfs/ui';
+import { Button, Drawer, Icon, Popover, Tooltip } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { createList, deleteList, reorderLists, updateList, updateListColor } from './_lib/actions';
 import GripIcon from './_components/GripIcon';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
+import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
 
@@ -344,12 +345,16 @@ function ListItem({
   onColor,
   onRequestDelete,
 }: ListItemProps) {
+  const isMobile = useIsMobile();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: list.id,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
-  if (editing) {
+  // Desktop keeps the inline-edit-swap row exactly as before; on mobile,
+  // renaming happens in its own Drawer (below) instead, so the row itself is
+  // never replaced — matching the mockups' dedicated rename screen.
+  if (editing && !isMobile) {
     return (
       <li ref={setNodeRef} style={style} className={styles.item}>
         <div className={styles.editRow}>
@@ -369,6 +374,36 @@ function ListItem({
       </li>
     );
   }
+
+  const menuContent = (
+    <div className={styles.menu}>
+      <div className={styles.swatches}>
+        {LIST_SWATCHES.map((s) => (
+          <Tooltip key={s.key} content={s.label} side="bottom">
+            <button
+              type="button"
+              className={[styles.swatch, list.color === s.key ? styles.swatchActive : '']
+                .filter(Boolean)
+                .join(' ')}
+              style={{ background: s.token }}
+              aria-label={`Set colour ${s.label}`}
+              onClick={() => onColor(list, s.key)}
+            />
+          </Tooltip>
+        ))}
+      </div>
+      <button type="button" className={styles.menuItem} onClick={() => onStartRename(list)}>
+        Rename
+      </button>
+      <button
+        type="button"
+        className={[styles.menuItem, styles.menuDanger].join(' ')}
+        onClick={() => onRequestDelete(list)}
+      >
+        Delete
+      </button>
+    </div>
+  );
 
   return (
     <li
@@ -399,24 +434,78 @@ function ListItem({
         </Link>
         <span className={styles.trail}>
           {list.openCount > 0 && <span className={styles.count}>{list.openCount}</span>}
-          <Popover
+          {isMobile ? (
+            <button
+              type="button"
+              className={styles.menuBtn}
+              aria-label={`Actions for "${list.title}"`}
+              onClick={onMenuToggle}
+            >
+              ⋯
+            </button>
+          ) : (
+            <Popover
+              open={menuOpen}
+              onClose={onMenuClose}
+              align="right"
+              width={180}
+              aria-label={`Actions for "${list.title}"`}
+              trigger={
+                <button
+                  type="button"
+                  className={styles.menuBtn}
+                  aria-label={`Actions for "${list.title}"`}
+                  onClick={onMenuToggle}
+                >
+                  ⋯
+                </button>
+              }
+            >
+              {menuContent}
+            </Popover>
+          )}
+        </span>
+      </div>
+
+      {isMobile && (
+        <>
+          <Drawer
             open={menuOpen}
             onClose={onMenuClose}
-            align="right"
-            width={180}
             aria-label={`Actions for "${list.title}"`}
-            trigger={
-              <button
-                type="button"
-                className={styles.menuBtn}
-                aria-label={`Actions for "${list.title}"`}
-                onClick={onMenuToggle}
-              >
-                ⋯
-              </button>
-            }
           >
-            <div className={styles.menu}>
+            {menuContent}
+          </Drawer>
+          <Drawer open={editing} onClose={() => onRenameCancel(list)} aria-label={`Rename "${list.title}"`}>
+            <div className={styles.renameSheet}>
+              <div className={styles.renameSheetHeader}>
+                <button type="button" className={styles.renameSheetCancel} onClick={() => onRenameCancel(list)}>
+                  Cancel
+                </button>
+                <span className={styles.renameSheetTitle}>Edit list</span>
+                <button
+                  type="button"
+                  className={styles.renameSheetSave}
+                  onClick={() => onRenameCommit(list)}
+                >
+                  Save
+                </button>
+              </div>
+              <label className={styles.renameSheetLabel} htmlFor={`rename-${list.id}`}>
+                List name
+              </label>
+              <input
+                id={`rename-${list.id}`}
+                ref={renameInputRef}
+                className={styles.renameSheetInput}
+                value={editTitle}
+                onChange={(e) => onEditTitleChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onRenameCommit(list);
+                  if (e.key === 'Escape') onRenameCancel(list);
+                }}
+              />
+              <span className={styles.renameSheetLabel}>Colour</span>
               <div className={styles.swatches}>
                 {LIST_SWATCHES.map((s) => (
                   <Tooltip key={s.key} content={s.label} side="bottom">
@@ -432,20 +521,10 @@ function ListItem({
                   </Tooltip>
                 ))}
               </div>
-              <button type="button" className={styles.menuItem} onClick={() => onStartRename(list)}>
-                Rename
-              </button>
-              <button
-                type="button"
-                className={[styles.menuItem, styles.menuDanger].join(' ')}
-                onClick={() => onRequestDelete(list)}
-              >
-                Delete
-              </button>
             </div>
-          </Popover>
-        </span>
-      </div>
+          </Drawer>
+        </>
+      )}
     </li>
   );
 }
