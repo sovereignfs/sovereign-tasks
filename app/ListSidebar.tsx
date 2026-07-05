@@ -477,7 +477,12 @@ function ListItem({
           <Popover
             open={colorPickerOpen}
             onClose={onColorPickerClose}
-            align="right"
+            // 'left' — Popover's .left aligns the panel's *left* edge to the
+            // trigger's left edge, expanding rightward into the sidebar.
+            // 'right' would align the panel's right edge to this ~8px-wide
+            // trigger sitting near the sidebar's left edge, pushing a 160px
+            // panel almost entirely off-screen to the left.
+            align="left"
             width={160}
             aria-label={`Change colour for "${list.title}"`}
             trigger={
@@ -521,7 +526,7 @@ function ListItem({
               aria-label={`Actions for "${list.title}"`}
               onClick={onMenuToggle}
             >
-              ⋯
+              <Icon name="ellipsis-vertical" size="sm" aria-hidden />
             </button>
           )}
         </span>

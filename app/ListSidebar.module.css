@@ -92,7 +92,10 @@
 }
 
 .item:hover {
-  background: var(--sv-color-surface-raised);
+  /* Distinct from .active below (surface-raised) — using the same token for
+     both made a hovered, non-active row indistinguishable from the actually
+     active one. */
+  background: var(--sv-color-surface-sunken);
 }
 
 .active {
@@ -212,21 +215,24 @@
   margin-right: 3px;
 }
 
-/* .menuBtn overlays this same corner on hover (see below) — fade the count
-   out so the two never render on top of each other at once. */
-.item:hover .count,
-.item:focus-within .count,
+/* .menuBtn (mobile only — see below) overlays this same corner while its
+   Drawer is open, so the count still needs to fade out for that one case.
+   Desktop has no competing floating element in this corner any more (the
+   old combined actions menu was removed — see ListItem), so the count now
+   stays visible through hover/focus there. */
 .menuOpenRow .count {
   opacity: 0;
 }
 
+/* Mobile only (see ListItem's isMobile check) — desktop's equivalent lives in
+   TasksPane's header menu instead. */
 .menuBtn {
   all: unset;
   /* Floats over the row's right corner (mirrors .dragHandle on the left)
      instead of reserving its own flex width — with no reserved space, the
      count's flow position lines up exactly with the header's "+" button.
-     The count fades out (see .count rules above) whenever this is visible,
-     so the two never occupy the same corner at the same time.
+     The count fades out while this is open (.menuOpenRow, see .count rules
+     above) so the two never occupy the same corner at the same time.
 
      right matches the header's own right padding exactly (not an arbitrary
      small inset) — both buttons are the same 22px box, so matching the
@@ -241,8 +247,6 @@
   width: 22px;
   height: 22px;
   border-radius: var(--sv-radius-sm);
-  font-size: 15px;
-  line-height: 1;
   color: var(--sv-color-text-subtle);
   cursor: pointer;
   opacity: 0;
