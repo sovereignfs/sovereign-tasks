@@ -291,6 +291,15 @@
   margin-bottom: var(--sv-space-1);
 }
 
+/* Desktop's standalone colour popover (double-click the dot) has nothing
+   below the swatches — the border-bottom/margin-bottom above exist to
+   separate swatches from the Rename/Delete rows that follow them in the
+   mobile actions Drawer's combined menu, which doesn't apply here. */
+.swatchesStandalone {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
 .swatch {
   all: unset;
   width: 18px;

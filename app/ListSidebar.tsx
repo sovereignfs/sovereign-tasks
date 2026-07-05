@@ -428,7 +428,7 @@ function ListItem({
   // no rename/delete (those are reached via double-click-the-title and
   // TasksPane's header menu respectively).
   const colorPickerContent = (
-    <div className={styles.swatches}>
+    <div className={[styles.swatches, styles.swatchesStandalone].join(' ')}>
       {LIST_SWATCHES.map((s) => (
         <Tooltip key={s.key} content={s.label} side="bottom">
           <button
@@ -484,6 +484,10 @@ function ListItem({
             // panel almost entirely off-screen to the left.
             align="left"
             width={160}
+            // Square corners for this compact swatch grid — the default
+            // rounded panel chrome (packages/ui's Popover) reads oddly at
+            // this size; every other Popover in this plugin keeps it.
+            panelStyle={{ borderRadius: 0 }}
             aria-label={`Change colour for "${list.title}"`}
             trigger={
               <button
