@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable';
-import { Button, Popover, SegmentedControl } from '@sovereignfs/ui';
+import { Button, Icon, Popover, SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import BulkActionBar from '../_components/BulkActionBar';
@@ -401,7 +401,7 @@ export default function TasksPane({
                   aria-label={`Options for "${list.title}"`}
                   onClick={() => setMenuOpen((o) => !o)}
                 >
-                  ⋯
+                  <Icon name="ellipsis-vertical" size="sm" aria-hidden />
                 </button>
               }
             >
