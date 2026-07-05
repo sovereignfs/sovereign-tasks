@@ -52,7 +52,7 @@ See the [plugin development guide](../../docs/plugin-development.md) for the ful
 ## Stack
 
 - **Language:** TypeScript, React (Next.js App Router)
-- **Database:** isolated SQLite via `sdk.db` — no direct `@sovereignfs/db` imports
+- **Database:** shared platform database via `sdk.db` — no direct `@sovereignfs/db` imports
 - **UI:** `@sovereignfs/ui` components and `--sv-*` tokens exclusively
 - **Drag reorder:** `@dnd-kit/core` + `@dnd-kit/sortable`
 
@@ -65,3 +65,7 @@ See the [plugin development guide](../../docs/plugin-development.md) for the ful
 ## Spec
 
 Full functional requirements, data model, and milestone definitions: [SPEC.md](SPEC.md)
+
+## License
+
+AGPL-3.0-or-later — same license as the [Sovereign platform](https://github.com/sovereignfs/sovereign). See [LICENSE](LICENSE).
