@@ -30,6 +30,16 @@ interface Props {
   /** Ctrl/cmd-click or long-press toggles this row's membership in the bulk selection. */
   onBulkToggle?: (taskId: string) => void;
   onMutated: () => void;
+  /**
+   * True whenever TasksPane's sortBy isn't 'manual'. Dragging a row while the
+   * list is displayed in a derived order (date/due date/title) would compute
+   * the wrong reorder — dnd-kit sees the *visible* (sorted) index positions,
+   * not the underlying manual sortOrder, so a drop would silently apply the
+   * sorted view's index gap to the real order and corrupt it. Reordering
+   * only makes sense in Manual sort, so the handle is hidden and dragging
+   * disabled otherwise.
+   */
+  dragDisabled?: boolean;
 }
 
 export default function TaskItem({
@@ -40,6 +50,7 @@ export default function TaskItem({
   bulkSelected = false,
   onBulkToggle,
   onMutated,
+  dragDisabled = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [pending, setPending] = useState(false);
@@ -48,6 +59,7 @@ export default function TaskItem({
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
+    disabled: dragDisabled,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -104,15 +116,17 @@ export default function TaskItem({
         .filter(Boolean)
         .join(' ')}
     >
-      <button
-        type="button"
-        className={styles.dragHandle}
-        aria-label="Drag to reorder"
-        {...attributes}
-        {...listeners}
-      >
-        <GripIcon />
-      </button>
+      {!dragDisabled && (
+        <button
+          type="button"
+          className={styles.dragHandle}
+          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripIcon />
+        </button>
+      )}
       <div className={styles.row}>
         <Checkbox
           checked={isComplete}

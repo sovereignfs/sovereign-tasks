@@ -46,10 +46,131 @@
   white-space: nowrap;
 }
 
+.titleInput {
+  all: unset;
+  font-size: var(--sv-font-size-xl);
+  font-weight: 600;
+  color: var(--sv-color-text-primary);
+  border-bottom: 1px solid var(--sv-color-accent);
+  min-width: 0;
+  flex: 1;
+}
+
 .count {
   font-size: var(--sv-font-size-sm);
   color: var(--sv-color-text-subtle);
   flex-shrink: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.menuBtn {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--sv-radius-sm);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+}
+
+.menuBtn:hover {
+  background: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sv-space-1);
+}
+
+.menuLabel {
+  padding: var(--sv-space-2) var(--sv-space-2) var(--sv-space-1);
+  font-size: var(--sv-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sv-color-text-subtle);
+}
+
+.menuItem {
+  all: unset;
+  padding: var(--sv-space-2);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border-radius: var(--sv-radius-sm);
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.menuItemActive {
+  font-weight: 600;
+}
+
+.menuDivider {
+  height: 1px;
+  margin: var(--sv-space-1) 0;
+  background: var(--sv-color-border);
+}
+
+.menuDanger {
+  color: var(--sv-color-error-text);
+}
+
+.menuDanger:hover {
+  background: var(--sv-color-error-surface);
+}
+
+.confirmNativeDialog {
+  border: none;
+  border-radius: var(--sv-radius-lg);
+  background: var(--sv-color-surface);
+  box-shadow: var(--sv-shadow-overlay);
+  padding: 0;
+  width: 22rem;
+  max-width: calc(100vw - var(--sv-space-8));
+}
+
+.confirmNativeDialog::backdrop {
+  background: var(--sv-color-scrim);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-6);
+}
+
+.confirmTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: 600;
+  color: var(--sv-color-text-primary);
+}
+
+.confirmText {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+  color: var(--sv-color-text-subtle);
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sv-space-2);
 }
 
 .addRow {

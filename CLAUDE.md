@@ -91,9 +91,21 @@ Console admin user routes as a workaround.
   param on `/tasks/[listId]`; it collapses below ~900px (tablet — no detail
   sheet substitute at this width; unchanged, low priority). Select a task via
   `<Link href="?task=id">`; close with `<Link replace href="/tasks/[listId]">`.
-- List management (rename, colour, delete) lives in the col-1 row `⋯` menu.
-  Colour is the one sanctioned splash in the monochrome UI — the fixed swatch
-  set is in `app/_lib/colors.ts`; it renders only as the small list dot.
+- **Desktop list management is split across double-click and a col-2 header
+  menu, not a single combined `⋯` menu** (that only exists on mobile — see
+  "Mobile shell"): double-clicking a list's title (col 1 sidebar row or col 2
+  header) renames it; double-clicking the colour dot opens just the swatch
+  picker. Delete and "Sort by" (Manual/Date created/Due date/Title A-Z,
+  client-side only — not persisted, resets on navigation like the `filter`
+  control) live in a `⋯` menu at the end of col 2's header, after the Filter
+  control. Colour is the one sanctioned splash in the monochrome UI — the
+  fixed swatch set is in `app/_lib/colors.ts`; it renders only as the small
+  list dot.
+- **Drag-reorder is disabled whenever Sort by isn't Manual.** Dragging while
+  the list displays a derived order would compute the wrong move — dnd-kit
+  only sees the sorted view's index positions, not the underlying manual
+  `sortOrder` — so `TaskItem`'s drag handle is hidden (`dragDisabled` prop)
+  and `TasksPane`'s `handleDragEnd` no-ops in that state.
 - **Mobile (≤640px) is a different UI, not a squeeze of the desktop one** —
   see "Mobile shell" below.
 
@@ -202,12 +214,14 @@ server-rendered output) at all.
   `TaskDetailPane`, opened/closed by the same `?task=` param convention as
   desktop. Swiping to a different list slide closes it, since a task's detail
   only makes sense tied to the slide it came from.
-- **List management** (`ListSidebar.tsx`'s `ListItem`): the `⋯` actions menu,
-  rename, and colour picker each render in a `Drawer` on mobile instead of a
-  `Popover`, gated by the same `useIsMobile()` check — same handlers
-  (`updateList`, `updateListColor`, etc.), different open/close mechanism.
-  **Delete confirmation is untouched at every breakpoint** — it's already a
-  native `<dialog>` that centers correctly regardless of width.
+- **List management** (`ListSidebar.tsx`'s `ListItem`): mobile keeps a single
+  combined `⋯` actions `Drawer` (rename, colour, delete together) — the
+  desktop split (double-click title/dot + a separate col-2 header menu, see
+  "UI rules" above) is desktop-only; mobile's own model was left alone.
+  `useIsMobile()` gates which one renders; both call the same handlers
+  (`updateList`, `updateListColor`, etc.). **Delete confirmation is untouched
+  at every breakpoint** — it's already a native `<dialog>` that centers
+  correctly regardless of width.
 
 ## Versioning
 
@@ -216,7 +230,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.6.3**
+Current version: **0.7.0**
 
 ## Running locally
 
