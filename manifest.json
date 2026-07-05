@@ -9,7 +9,7 @@
   "routePrefix": "/tasks",
   "shell": "default",
   "icon": "icon.svg",
-  "database": "isolated",
+  "database": "shared",
   "permissions": ["auth:session", "db:readWrite"],
   "repository": "https://github.com/sovereignfs/sovereign-tasks",
   "compatibility": {
