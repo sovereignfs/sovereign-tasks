@@ -17,9 +17,17 @@ import {
 } from '@dnd-kit/sortable';
 import { SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
+import BulkActionBar from '../_components/BulkActionBar';
 import TaskItem from '../_components/TaskItem';
-import { createTask, reorderTasks, updatePrefs } from '../_lib/actions';
+import {
+  bulkDeleteTasks,
+  bulkMoveTasks,
+  createTask,
+  reorderTasks,
+  toggleComplete,
+  updatePrefs,
+} from '../_lib/actions';
 import { isOverdue } from '../_lib/date';
 import { listDotColor } from '../_lib/colors';
 import type { ListRow, TaskRow } from '../_lib/types';
@@ -29,11 +37,16 @@ type Filter = 'all' | 'active' | 'overdue';
 
 interface Props {
   list: ListRow;
+  lists: ListRow[];
   initialTasks: TaskRow[];
   showCompleted: boolean;
   listId: string;
   selectedTaskId: string | null;
 }
+
+// Elements that should swallow single-letter shortcuts because the user is
+// typing into them (TSK-19 — shortcuts only fire when focus isn't in a field).
+const TYPING_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
 type TaskAction = { type: 'add'; task: TaskRow } | { type: 'reorder'; ids: string[] };
 
@@ -56,6 +69,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 export default function TasksPane({
   list,
+  lists,
   initialTasks,
   showCompleted: initialShowCompleted,
   listId,
@@ -65,12 +79,19 @@ export default function TasksPane({
   const [newTitle, setNewTitle] = useState('');
   const [filter, setFilter] = useState<Filter>('active');
   const [_isPending, startTransition] = useTransition();
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   const [tasks, applyTaskAction] = useOptimistic(initialTasks, tasksReducer);
   const [completedOpen, setCompletedOpen] = useOptimistic(
     initialShowCompleted,
     (_prev, next: boolean) => next,
   );
+
+  // TSK-19 — keyboard row focus (j/k/Up/Down), independent of `selectedTaskId`
+  // (the task open in the detail pane).
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  // TSK-20/21 — bulk selection (ctrl/cmd-click or long-press on a row).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -87,6 +108,103 @@ export default function TasksPane({
   function refresh() {
     startTransition(() => router.refresh());
   }
+
+  function toggleBulkSelect(taskId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }
+
+  function clearBulkSelect() {
+    setSelectedIds(new Set());
+  }
+
+  function handleBulkDelete() {
+    const ids = [...selectedIds];
+    clearBulkSelect();
+    startTransition(async () => {
+      await bulkDeleteTasks(ids, listId);
+      router.refresh();
+    });
+  }
+
+  function handleBulkMove(toListId: string) {
+    const ids = [...selectedIds];
+    clearBulkSelect();
+    startTransition(async () => {
+      await bulkMoveTasks(ids, listId, toListId);
+      router.refresh();
+    });
+  }
+
+  // TSK-19 — keyboard shortcuts. Skipped while typing in a field, so they
+  // never fight with normal text entry (add-task input, notes, renames…).
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && (TYPING_TAGS.has(target.tagName) || target.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === 'Escape' && selectedIds.size > 0) {
+        e.preventDefault();
+        clearBulkSelect();
+        return;
+      }
+
+      if (e.key === 'n') {
+        e.preventDefault();
+        addInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'j' || e.key === 'ArrowDown' || e.key === 'k' || e.key === 'ArrowUp') {
+        if (activeVisible.length === 0) return;
+        e.preventDefault();
+        const down = e.key === 'j' || e.key === 'ArrowDown';
+        const currentIndex = activeVisible.findIndex((t) => t.id === focusedId);
+        const nextIndex =
+          currentIndex === -1
+            ? 0
+            : Math.min(Math.max(currentIndex + (down ? 1 : -1), 0), activeVisible.length - 1);
+        setFocusedId(activeVisible[nextIndex]?.id ?? null);
+        return;
+      }
+
+      if (e.key === 'e' && focusedId) {
+        const task = activeVisible.find((t) => t.id === focusedId);
+        if (!task) return;
+        e.preventDefault();
+        startTransition(async () => {
+          await toggleComplete(task.id, task.listId, true);
+          router.refresh();
+        });
+        return;
+      }
+
+      if (e.key === 'Enter' && focusedId) {
+        e.preventDefault();
+        router.push(`/tasks/${listId}?task=${focusedId}`);
+        return;
+      }
+
+      if (e.key === '[' || e.key === ']') {
+        if (lists.length < 2) return;
+        const currentIndex = lists.findIndex((l) => l.id === listId);
+        if (currentIndex === -1) return;
+        e.preventDefault();
+        const delta = e.key === ']' ? 1 : -1;
+        const nextIndex = (currentIndex + delta + lists.length) % lists.length;
+        const target = lists[nextIndex];
+        if (target) router.push(`/tasks/${target.id}`);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeVisible, focusedId, listId, lists, router, selectedIds.size, startTransition]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active: a, over } = event;
@@ -161,6 +279,7 @@ export default function TasksPane({
           +
         </span>
         <input
+          ref={addInputRef}
           className={styles.addInput}
           placeholder="Add a task and press Enter…"
           value={newTitle}
@@ -188,6 +307,9 @@ export default function TasksPane({
                 task={task}
                 showCompleted={completedExpanded}
                 selected={task.id === selectedTaskId}
+                keyFocused={task.id === focusedId}
+                bulkSelected={selectedIds.has(task.id)}
+                onBulkToggle={toggleBulkSelect}
                 onMutated={refresh}
               />
             ))}
@@ -224,12 +346,25 @@ export default function TasksPane({
                   task={task}
                   showCompleted
                   selected={task.id === selectedTaskId}
+                  bulkSelected={selectedIds.has(task.id)}
+                  onBulkToggle={toggleBulkSelect}
                   onMutated={refresh}
                 />
               ))}
             </div>
           )}
         </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <BulkActionBar
+          count={selectedIds.size}
+          lists={lists}
+          currentListId={listId}
+          onDelete={handleBulkDelete}
+          onMove={handleBulkMove}
+          onCancel={clearBulkSelect}
+        />
       )}
     </div>
   );

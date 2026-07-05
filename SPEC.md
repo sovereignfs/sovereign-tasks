@@ -445,6 +445,15 @@ members.
 Due date + time, overdue distinction, filtering (All / Active / Completed /
 Overdue), cross-list search, keyboard shortcuts, bulk delete and move.
 
+**Verified:** Keyboard shortcuts (`n`/`j`·`k`/`e`/`Enter`/`[`·`]`) are scoped to
+the task-list pane and skip while focus is in a text field, so they never
+fight with typing. Bulk select is entered via ctrl/cmd-click or long-press on
+a row rather than an explicit "Select" mode toggle, since the row checkbox
+already means "mark complete" — a second, distinct trigger avoids that clash.
+Bulk delete and move run as dedicated server actions (`bulkDeleteTasks`,
+`bulkMoveTasks`) rather than N sequential single-task calls, for one DB round
+trip per table instead of one per selected task.
+
 **Done when:** Tasks with due dates surface correctly in filters and overdue
 styling; keyboard shortcuts cover the core actions; bulk select operates on
 multiple tasks in one action.

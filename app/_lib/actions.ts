@@ -1,7 +1,7 @@
 'use server';
 
 import { sdk } from '@sovereignfs/sdk';
-import { and, asc, desc, eq, gte, isNotNull, isNull, like } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, like } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
 import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
@@ -556,6 +556,56 @@ export async function deleteTask(taskId: string, listId: string) {
   await db
     .delete(tasksItems)
     .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+}
+
+/** TSK-20: delete every task in taskIds plus their subtasks, in one round
+ *  trip per table. All ids are assumed to belong to listId — callers source
+ *  them from that list's own rendered rows. */
+export async function bulkDeleteTasks(taskIds: string[], listId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, listId, userId, tenantId);
+  if (taskIds.length === 0) return;
+  await db
+    .delete(tasksItems)
+    .where(and(inArray(tasksItems.parentId, taskIds), eq(tasksItems.tenantId, tenantId)));
+  await db
+    .delete(tasksItems)
+    .where(and(inArray(tasksItems.id, taskIds), eq(tasksItems.tenantId, tenantId)));
+}
+
+/** TSK-21: reassign every task in taskIds to toListId, appending each after
+ *  the destination's existing tasks in taskIds' own order. Subtasks move with
+ *  their parent, same as the single-task moveTask above. */
+export async function bulkMoveTasks(taskIds: string[], fromListId: string, toListId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await assertListOwnership(db, fromListId, userId, tenantId);
+  await assertListOwnership(db, toListId, userId, tenantId);
+  if (fromListId === toListId || taskIds.length === 0) return;
+
+  const siblings = await db
+    .select({ sortOrder: tasksItems.sortOrder })
+    .from(tasksItems)
+    .where(
+      and(
+        eq(tasksItems.listId, toListId),
+        eq(tasksItems.tenantId, tenantId),
+        isNull(tasksItems.parentId),
+      ),
+    );
+  let maxOrder = siblings.reduce((m, t) => Math.max(m, t.sortOrder), -1);
+  const ts = now();
+
+  for (const taskId of taskIds) {
+    maxOrder += 1;
+    await db
+      .update(tasksItems)
+      .set({ listId: toListId, sortOrder: maxOrder, updatedAt: ts })
+      .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
+    await db
+      .update(tasksItems)
+      .set({ listId: toListId, updatedAt: ts })
+      .where(and(eq(tasksItems.parentId, taskId), eq(tasksItems.tenantId, tenantId)));
+  }
 }
 
 export async function reorderTasks(listId: string, orderedIds: string[]) {

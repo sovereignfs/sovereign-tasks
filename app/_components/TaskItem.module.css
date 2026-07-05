@@ -13,6 +13,15 @@
   background: var(--sv-color-surface-raised);
 }
 
+.bulkSelected {
+  background: var(--sv-color-surface-sunken);
+}
+
+.keyFocused {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: -2px;
+}
+
 .dragging {
   opacity: 0.5;
 }
