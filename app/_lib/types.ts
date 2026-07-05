@@ -21,4 +21,6 @@ export interface TaskRow {
   recurrenceRule: string | null;
   subtaskCount: number;
   subtaskDoneCount: number;
+  /** Unix epoch seconds. Only read by the client for the "Date" sort option. */
+  createdAt: number;
 }

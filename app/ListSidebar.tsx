@@ -65,6 +65,11 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  // Desktop-only: the small colour-swatch popover triggered by double-clicking
+  // a list's dot. Separate from menuOpenId (mobile's full actions Drawer,
+  // still rename/colour/delete together) since desktop no longer has a
+  // combined actions menu — see ListItem.
+  const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ListRow | null>(null);
   const [query, setQuery] = useState('');
   const [, startTransition] = useTransition();
@@ -255,6 +260,7 @@ export default function ListSidebar({ lists: initialLists }: Props) {
                 editTitle={editTitle}
                 renameInputRef={renameInputRef}
                 menuOpen={menuOpenId === list.id}
+                colorPickerOpen={colorPickerOpenId === list.id}
                 onEditTitleChange={setEditTitle}
                 onRenameCommit={handleRenameCommit}
                 onRenameCancel={(l) => {
@@ -263,6 +269,10 @@ export default function ListSidebar({ lists: initialLists }: Props) {
                 }}
                 onMenuToggle={() => setMenuOpenId((id) => (id === list.id ? null : list.id))}
                 onMenuClose={() => setMenuOpenId(null)}
+                onColorPickerToggle={() =>
+                  setColorPickerOpenId((id) => (id === list.id ? null : list.id))
+                }
+                onColorPickerClose={() => setColorPickerOpenId(null)}
                 onStartRename={(l) => {
                   setMenuOpenId(null);
                   setEditingId(l.id);
@@ -319,11 +329,14 @@ interface ListItemProps {
   editTitle: string;
   renameInputRef: React.RefObject<HTMLInputElement | null>;
   menuOpen: boolean;
+  colorPickerOpen: boolean;
   onEditTitleChange: (value: string) => void;
   onRenameCommit: (list: ListRow) => void;
   onRenameCancel: (list: ListRow) => void;
   onMenuToggle: () => void;
   onMenuClose: () => void;
+  onColorPickerToggle: () => void;
+  onColorPickerClose: () => void;
   onStartRename: (list: ListRow) => void;
   onColor: (list: ListRow, color: string) => void;
   onRequestDelete: (list: ListRow) => void;
@@ -336,11 +349,14 @@ function ListItem({
   editTitle,
   renameInputRef,
   menuOpen,
+  colorPickerOpen,
   onEditTitleChange,
   onRenameCommit,
   onRenameCancel,
   onMenuToggle,
   onMenuClose,
+  onColorPickerToggle,
+  onColorPickerClose,
   onStartRename,
   onColor,
   onRequestDelete,
@@ -375,6 +391,9 @@ function ListItem({
     );
   }
 
+  // Mobile only — desktop's equivalent actions live in TasksPane's header
+  // menu instead (rename/colour are reached via double-click directly on
+  // this row; see below).
   const menuContent = (
     <div className={styles.menu}>
       <div className={styles.swatches}>
@@ -405,6 +424,30 @@ function ListItem({
     </div>
   );
 
+  // Desktop only — double-clicking the dot opens just the colour swatches,
+  // no rename/delete (those are reached via double-click-the-title and
+  // TasksPane's header menu respectively).
+  const colorPickerContent = (
+    <div className={styles.swatches}>
+      {LIST_SWATCHES.map((s) => (
+        <Tooltip key={s.key} content={s.label} side="bottom">
+          <button
+            type="button"
+            className={[styles.swatch, list.color === s.key ? styles.swatchActive : '']
+              .filter(Boolean)
+              .join(' ')}
+            style={{ background: s.token }}
+            aria-label={`Set colour ${s.label}`}
+            onClick={() => {
+              onColor(list, s.key);
+              onColorPickerClose();
+            }}
+          />
+        </Tooltip>
+      ))}
+    </div>
+  );
+
   return (
     <li
       ref={setNodeRef}
@@ -428,13 +471,50 @@ function ListItem({
         <GripIcon />
       </button>
       <div className={styles.rowInner}>
-        <Link href={`/tasks/${list.id}`} className={styles.link}>
+        {isMobile ? (
           <span className={styles.dot} style={{ background: listDotColor(list.color) }} aria-hidden />
+        ) : (
+          <Popover
+            open={colorPickerOpen}
+            onClose={onColorPickerClose}
+            align="right"
+            width={160}
+            aria-label={`Change colour for "${list.title}"`}
+            trigger={
+              <button
+                type="button"
+                className={styles.dotButton}
+                style={{ background: listDotColor(list.color) }}
+                aria-label={`Change colour for "${list.title}"`}
+                onDoubleClick={onColorPickerToggle}
+              />
+            }
+          >
+            {colorPickerContent}
+          </Popover>
+        )}
+        <Link
+          href={`/tasks/${list.id}`}
+          className={styles.link}
+          onClick={(e) => {
+            // e.detail === 2 is the second click of a double-click (native
+            // browser click-count tracking) — preventDefault here cancels
+            // Next's own Link navigation (it checks defaultPrevented after
+            // any caller-supplied onClick runs), so a double-click renames
+            // instead of navigating. Single clicks (detail === 1) pass
+            // through untouched. Desktop only — mobile renames via the
+            // dedicated Drawer sheet reached through the actions menu.
+            if (!isMobile && e.detail === 2) {
+              e.preventDefault();
+              onStartRename(list);
+            }
+          }}
+        >
           <span className={styles.listTitle}>{list.title}</span>
         </Link>
         <span className={styles.trail}>
           {list.openCount > 0 && <span className={styles.count}>{list.openCount}</span>}
-          {isMobile ? (
+          {isMobile && (
             <button
               type="button"
               className={styles.menuBtn}
@@ -443,26 +523,6 @@ function ListItem({
             >
               ⋯
             </button>
-          ) : (
-            <Popover
-              open={menuOpen}
-              onClose={onMenuClose}
-              align="right"
-              width={180}
-              aria-label={`Actions for "${list.title}"`}
-              trigger={
-                <button
-                  type="button"
-                  className={styles.menuBtn}
-                  aria-label={`Actions for "${list.title}"`}
-                  onClick={onMenuToggle}
-                >
-                  ⋯
-                </button>
-              }
-            >
-              {menuContent}
-            </Popover>
           )}
         </span>
       </div>

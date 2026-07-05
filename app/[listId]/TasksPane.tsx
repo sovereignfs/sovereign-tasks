@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable';
-import { SegmentedControl } from '@sovereignfs/ui';
+import { Button, Popover, SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import BulkActionBar from '../_components/BulkActionBar';
@@ -24,12 +24,16 @@ import {
   bulkDeleteTasks,
   bulkMoveTasks,
   createTask,
+  deleteList,
   reorderTasks,
   toggleComplete,
+  updateList,
   updatePrefs,
 } from '../_lib/actions';
 import { isOverdue } from '../_lib/date';
 import { listDotColor } from '../_lib/colors';
+import { SORT_OPTIONS, sortTasks, type SortBy } from '../_lib/sort';
+import { useIsMobile } from '../_lib/useIsMobile';
 import type { ListRow, TaskRow } from '../_lib/types';
 import styles from './TasksPane.module.css';
 
@@ -76,10 +80,23 @@ export default function TasksPane({
   selectedTaskId,
 }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [newTitle, setNewTitle] = useState('');
   const [filter, setFilter] = useState<Filter>('active');
   const [_isPending, startTransition] = useTransition();
   const addInputRef = useRef<HTMLInputElement>(null);
+
+  // Desktop only — rename-via-double-click on the title, and the header
+  // options menu (sort + delete). Mobile keeps managing these through
+  // ListSidebar's own actions Drawer on the Lists index slide instead; see
+  // CLAUDE.md's "Mobile shell" section for why mobile stays on its own model.
+  const [renaming, setRenaming] = useState(false);
+  const [renameTitle, setRenameTitle] = useState(list.title);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>('manual');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
 
   const [tasks, applyTaskAction] = useOptimistic(initialTasks, tasksReducer);
   const [completedOpen, setCompletedOpen] = useOptimistic(
@@ -99,14 +116,76 @@ export default function TasksPane({
   );
 
   const active = tasks.filter((t) => t.completedAt === null);
-  const activeVisible =
+  const activeFiltered =
     filter === 'overdue' ? active.filter((t) => isOverdue(t.dueDate, t.completedAt)) : active;
-  const completed = tasks.filter((t) => t.completedAt !== null);
+  // Sort is only actually applied on desktop (see sortBy's own comment) —
+  // mobile's sortBy state stays 'manual' since its header never renders the
+  // menu that would change it, so sortTasks is always a no-op there anyway.
+  const activeVisible = sortTasks(activeFiltered, sortBy);
+  const completed = sortTasks(
+    tasks.filter((t) => t.completedAt !== null),
+    sortBy,
+  );
   const showCompletedSection = filter !== 'overdue' && completed.length > 0;
   const completedExpanded = filter === 'all' || completedOpen;
 
+  useEffect(() => {
+    if (renaming) {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [renaming]);
+
+  // Native <dialog> for the delete confirmation — mirrors ListSidebar's
+  // pattern (sized to content, unlike @sovereignfs/ui's Dialog which is a
+  // fixed-size box by design for tabbed/multi-view content).
+  useEffect(() => {
+    const el = deleteDialogRef.current;
+    if (!el) return;
+    if (deleteOpen) el.showModal();
+    else el.close();
+  }, [deleteOpen]);
+
+  useEffect(() => {
+    const el = deleteDialogRef.current;
+    if (!el) return;
+    const handleClose = () => setDeleteOpen(false);
+    el.addEventListener('close', handleClose);
+    return () => el.removeEventListener('close', handleClose);
+  }, []);
+
   function refresh() {
     startTransition(() => router.refresh());
+  }
+
+  function startRename() {
+    setRenameTitle(list.title);
+    setRenaming(true);
+  }
+
+  function commitRename() {
+    const trimmed = renameTitle.trim();
+    setRenaming(false);
+    if (trimmed && trimmed !== list.title) {
+      startTransition(async () => {
+        await updateList(listId, trimmed);
+        router.refresh();
+      });
+    }
+  }
+
+  function cancelRename() {
+    setRenameTitle(list.title);
+    setRenaming(false);
+  }
+
+  function confirmDeleteList() {
+    setDeleteOpen(false);
+    startTransition(async () => {
+      await deleteList(listId);
+      router.push('/tasks');
+      router.refresh();
+    });
   }
 
   function toggleBulkSelect(taskId: string) {
@@ -207,6 +286,11 @@ export default function TasksPane({
   }, [activeVisible, focusedId, listId, lists, router, selectedIds.size, startTransition]);
 
   function handleDragEnd(event: DragEndEvent) {
+    // Guards the same invariant as TaskItem's dragDisabled prop (which hides
+    // the handle) — belt and suspenders, since old/newIndex below are looked
+    // up against `tasks` (manual order), not the sorted `activeVisible`/
+    // `completed` arrays dnd-kit actually rendered handles for.
+    if (sortBy !== 'manual') return;
     const { active: a, over } = event;
     if (!over || a.id === over.id) return;
     const oldIndex = tasks.findIndex((t) => t.id === a.id);
@@ -237,6 +321,7 @@ export default function TasksPane({
           dueDate: null,
           dueTime: null,
           recurrenceRule: null,
+          createdAt: Math.floor(Date.now() / 1000),
           subtaskCount: 0,
           subtaskDoneCount: 0,
         },
@@ -260,19 +345,128 @@ export default function TasksPane({
       <header className={styles.header}>
         <div className={styles.titleRow}>
           <span className={styles.dot} style={{ background: listDotColor(list.color) }} aria-hidden />
-          <h1 className={styles.title}>{list.title}</h1>
+          {renaming ? (
+            <input
+              ref={renameInputRef}
+              className={styles.titleInput}
+              value={renameTitle}
+              aria-label={`Rename "${list.title}"`}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') cancelRename();
+              }}
+            />
+          ) : (
+            // Double-click-to-rename is a mouse-only convenience affordance
+            // layered on top of a plain, fully-readable heading — there's no
+            // separate keyboard-accessible rename entry point by design
+            // (matches ListSidebar's identical row-title pattern). Same
+            // e.detail === 2 trick: desktop only; mobile renames through the
+            // sidebar's Drawer instead.
+            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+            <h1
+              className={styles.title}
+              onClick={(e) => {
+                if (!isMobile && e.detail === 2) startRename();
+              }}
+            >
+              {list.title}
+            </h1>
+          )}
           <span className={styles.count}>
             {active.length} {active.length === 1 ? 'task' : 'tasks'}
           </span>
         </div>
-        <SegmentedControl<Filter>
-          value={filter}
-          onChange={setFilter}
-          options={FILTERS}
-          size="sm"
-          aria-label="Filter tasks"
-        />
+        <div className={styles.headerActions}>
+          <SegmentedControl<Filter>
+            value={filter}
+            onChange={setFilter}
+            options={FILTERS}
+            size="sm"
+            aria-label="Filter tasks"
+          />
+          {!isMobile && (
+            <Popover
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              align="right"
+              width={200}
+              aria-label={`Options for "${list.title}"`}
+              trigger={
+                <button
+                  type="button"
+                  className={styles.menuBtn}
+                  aria-label={`Options for "${list.title}"`}
+                  onClick={() => setMenuOpen((o) => !o)}
+                >
+                  ⋯
+                </button>
+              }
+            >
+              <div className={styles.menu}>
+                <span className={styles.menuLabel}>Sort by</span>
+                {SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={[
+                      styles.menuItem,
+                      sortBy === opt.value ? styles.menuItemActive : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => {
+                      setSortBy(opt.value);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <div className={styles.menuDivider} />
+                <button
+                  type="button"
+                  className={[styles.menuItem, styles.menuDanger].join(' ')}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setDeleteOpen(true);
+                  }}
+                >
+                  Delete list
+                </button>
+              </div>
+            </Popover>
+          )}
+        </div>
       </header>
+
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
+      <dialog
+        ref={deleteDialogRef}
+        className={styles.confirmNativeDialog}
+        aria-label="Delete list"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setDeleteOpen(false);
+        }}
+      >
+        <div className={styles.confirm}>
+          <h2 className={styles.confirmTitle}>Delete list</h2>
+          <p className={styles.confirmText}>
+            Delete "{list.title}"? This permanently removes the list and all of its tasks. This
+            can't be undone.
+          </p>
+          <div className={styles.confirmActions}>
+            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteList}>
+              Delete list
+            </Button>
+          </div>
+        </div>
+      </dialog>
 
       <div className={styles.addRow}>
         <span className={styles.addPlus} aria-hidden>
@@ -311,6 +505,7 @@ export default function TasksPane({
                 bulkSelected={selectedIds.has(task.id)}
                 onBulkToggle={toggleBulkSelect}
                 onMutated={refresh}
+                dragDisabled={sortBy !== 'manual'}
               />
             ))}
             {activeVisible.length === 0 && (
@@ -349,6 +544,7 @@ export default function TasksPane({
                   bulkSelected={selectedIds.has(task.id)}
                   onBulkToggle={toggleBulkSelect}
                   onMutated={refresh}
+                  dragDisabled={sortBy !== 'manual'}
                 />
               ))}
             </div>
