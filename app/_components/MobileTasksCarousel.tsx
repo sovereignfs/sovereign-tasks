@@ -131,6 +131,24 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
     el.scrollTo({ left: initialIndexRef.current * el.clientWidth, behavior: 'instant' });
   }, []);
 
+  // Sync to the pathname whenever it changes for a reason other than the
+  // carousel's own scroll-settle handler below — e.g. tapping a list row's
+  // <Link> on the Lists index slide (ListSidebar), which navigates but never
+  // touches scrollLeft itself. Guarded to a no-op when the index already
+  // matches (including the scroll-settle handler's own router.replace, which
+  // by definition changes the URL to match the activeIndex it just set).
+  const didMountPathSync = useRef(false);
+  useEffect(() => {
+    if (!didMountPathSync.current) {
+      didMountPathSync.current = true;
+      return;
+    }
+    const newIndex = indexForPathname(pathname, lists);
+    if (newIndex === activeIndexRef.current) return;
+    setActiveIndex(newIndex);
+    scrollRef.current?.scrollTo({ left: newIndex * scrollRef.current.clientWidth, behavior: 'smooth' });
+  }, [pathname, lists]);
+
   // Re-align on viewport resize (e.g. orientation change) so the active
   // slide stays framed correctly.
   useEffect(() => {
