@@ -69,15 +69,15 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 | --------- | -------- | ------- | ---------------------------------------------------- |
 | v0.1      | 01–09    | shipped | Private lists, task/subtask CRUD, completion, sort   |
 | v0.2      | 10–14    | blocked | Collaboration — requires `sdk.directory` (sv-RFC 0041)  |
-| v0.3      | 15–21    | partial | Due dates ✅, overdue ✅, filters ✅, search ✅; keyboard shortcuts + bulk actions pending |
+| v0.3      | 15–21    | shipped | Due dates, overdue, filters, search, keyboard shortcuts, bulk delete/move |
 | v0.4      | 22–25    | shipped | Recurrence via `rrule` (sv-RFC 5545) — nth-day-of-month deferred |
 | v1.0      | —        | future  | Polish, docs, reference implementation               |
 
 **TSK-26 (star/favourite)** and **TSK-27 (move a task to a different list, from
 the detail pane)** shipped ahead of phasing alongside the three-column web home.
 **v0.4 (recurrence)** shipped out of order too, ahead of v0.3's remaining
-keyboard-shortcut/bulk-action items — see `roadmap.md` for per-requirement
-status.
+keyboard-shortcut/bulk-action items, which followed in their own branch — see
+`roadmap.md` for per-requirement status.
 
 **Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
@@ -139,6 +139,23 @@ in `date.ts`, which are correct for UI display but wrong for rrule interop.
 Stored `recurrence_rule` strings never embed `DTSTART` — a task's own
 `due_date` is always the anchor, supplied at computation time.
 
+## Keyboard shortcuts and bulk select
+
+TSK-19–21, in `TasksPane.tsx`/`TaskItem.tsx`/`BulkActionBar.tsx`. Shortcuts
+(`n` new task, `j`/`k`/Up/Down row focus, `e` complete, `Enter` open detail,
+`[`/`]` previous/next list, `Escape` clears bulk selection) attach via a
+`window` `keydown` listener in `TasksPane` and bail out whenever
+`document.activeElement` is an `INPUT`/`TEXTAREA`/`SELECT` or
+`isContentEditable`, or a modifier key is held — they must never fire while
+the user is typing. Bulk select is entered via **ctrl/cmd-click or long-press
+on a row**, not an explicit "Select" mode button — the row checkbox already
+means "mark complete", so a mode toggle would either shadow that or require
+two different checkbox meanings on the same element. Bulk delete/move go
+through dedicated server actions (`bulkDeleteTasks`, `bulkMoveTasks` in
+`actions.ts`) that operate on the whole id array in one query per table,
+rather than looping the existing single-task `deleteTask`/`moveTask` — avoids
+N round trips for an N-task selection.
+
 ## Versioning
 
 This plugin follows its own semver, independent of the platform version:
@@ -146,7 +163,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.4.0**
+Current version: **0.5.0**
 
 ## Running locally
 

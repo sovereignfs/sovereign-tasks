@@ -32,6 +32,7 @@ export default async function ListPage({ params, searchParams }: Props) {
       <div className={styles.listCol}>
         <TasksPane
           list={list}
+          lists={lists}
           initialTasks={tasks}
           showCompleted={prefs?.showCompleted ?? false}
           listId={listId}

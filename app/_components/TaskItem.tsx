@@ -4,7 +4,7 @@ import { Checkbox, Icon } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
 import { summaryLabel } from '../_lib/recurrence';
@@ -15,16 +15,36 @@ import StarButton from './StarButton';
 import SubtaskList from './SubtaskList';
 import styles from './TaskItem.module.css';
 
+// TSK-20/21: how long a touch must be held before it counts as a long-press
+// (the touch equivalent of a desktop ctrl/cmd-click) to enter bulk-select.
+const LONG_PRESS_MS = 500;
+
 interface Props {
   task: TaskRow;
   showCompleted: boolean;
   selected: boolean;
+  /** TSK-19 — keyboard row focus (j/k), distinct from `selected` (detail pane open). */
+  keyFocused?: boolean;
+  /** TSK-20/21 — this row is part of the active bulk selection. */
+  bulkSelected?: boolean;
+  /** Ctrl/cmd-click or long-press toggles this row's membership in the bulk selection. */
+  onBulkToggle?: (taskId: string) => void;
   onMutated: () => void;
 }
 
-export default function TaskItem({ task, showCompleted, selected, onMutated }: Props) {
+export default function TaskItem({
+  task,
+  showCompleted,
+  selected,
+  keyFocused = false,
+  bulkSelected = false,
+  onBulkToggle,
+  onMutated,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const [pending, setPending] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClick = useRef(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -43,6 +63,33 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
     setPending(false);
   }
 
+  function clearLongPressTimer() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (e.pointerType !== 'touch' || !onBulkToggle) return;
+    longPressTimer.current = setTimeout(() => {
+      suppressNextClick.current = true;
+      onBulkToggle(task.id);
+    }, LONG_PRESS_MS);
+  }
+
+  function handleMainClick(e: React.MouseEvent) {
+    if (suppressNextClick.current) {
+      suppressNextClick.current = false;
+      e.preventDefault();
+      return;
+    }
+    if (onBulkToggle && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onBulkToggle(task.id);
+    }
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -50,6 +97,8 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
       className={[
         styles.wrapper,
         selected ? styles.selected : '',
+        bulkSelected ? styles.bulkSelected : '',
+        keyFocused ? styles.keyFocused : '',
         isDragging ? styles.dragging : '',
       ]
         .filter(Boolean)
@@ -73,7 +122,15 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
           aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
         />
 
-        <Link href={detailHref} className={styles.main}>
+        <Link
+          href={detailHref}
+          className={styles.main}
+          onClick={handleMainClick}
+          onPointerDown={handlePointerDown}
+          onPointerUp={clearLongPressTimer}
+          onPointerLeave={clearLongPressTimer}
+          onPointerMove={clearLongPressTimer}
+        >
           <span
             className={[styles.title, isComplete ? styles.complete : ''].filter(Boolean).join(' ')}
           >

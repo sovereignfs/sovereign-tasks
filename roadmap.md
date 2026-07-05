@@ -28,7 +28,8 @@ TSK-10 through TSK-14: shared lists, membership roles, task assignment, member r
 
 Due dates, filters, and cross-list search landed early — alongside the
 three-column web home — ahead of the original phasing. Keyboard shortcuts and
-bulk actions remain the open items in this milestone.
+bulk actions shipped after recurrence (v0.4), which itself jumped the queue —
+completing this milestone.
 
 | ID | Requirement | Status |
 | --- | --- | --- |
@@ -36,11 +37,21 @@ bulk actions remain the open items in this milestone.
 | TSK-16 | Overdue tasks visually distinguished | ✅ |
 | TSK-17 | Filter: All / Active / Overdue, plus a Completed section | ✅ |
 | TSK-18 | Cross-list search by task title | ✅ |
-| TSK-19 | Keyboard shortcuts for common actions | 🔲 |
-| TSK-20 | Bulk select + delete | 🔲 |
-| TSK-21 | Bulk select + move to another list | 🔲 |
+| TSK-19 | Keyboard shortcuts for common actions | ✅ |
+| TSK-20 | Bulk select + delete | ✅ |
+| TSK-21 | Bulk select + move to another list | ✅ |
 | TSK-26 | Star/favourite a task (added ahead of phasing) | ✅ |
 | TSK-27 | Move a single task to a different list from the detail pane (added ahead of phasing; distinct from TSK-21's bulk move) | ✅ |
+
+Keyboard shortcuts (scoped to the task-list pane, skipped while typing in a
+field): `n` focuses the add-task input, `j`/`k` (or Up/Down) move a keyboard
+focus ring between rows, `e` completes the focused row, `Enter` opens its
+detail pane, and `[`/`]` switch to the previous/next list. Bulk selection is
+entered via ctrl/cmd-click (desktop) or long-press (touch) on a row — deliberately
+not an explicit "Select" mode button, since the row checkbox already means
+"mark complete" and this keeps that meaning unambiguous. A floating action bar
+appears with the selection count plus Move to list / Delete / Cancel; `Escape`
+also clears the selection.
 
 ## v0.4 — Recurrence
 
