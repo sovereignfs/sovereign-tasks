@@ -1,6 +1,6 @@
 {
   "name": "@sovereignfs/sovereign-tasks",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -11,6 +11,7 @@
     "@sovereignfs/sdk": "workspace:*",
     "@sovereignfs/ui": "workspace:*",
     "next": "catalog:",
+    "rrule": "^2.8.1",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

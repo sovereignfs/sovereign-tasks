@@ -1,0 +1,73 @@
+/* Native <dialog>, content-sized — matches the same pattern used for the
+   delete-list confirm in ListSidebar.tsx (Dialog from @sovereignfs/ui is a
+   fixed-size box by design, wrong fit for a short prompt like this). */
+.dialog {
+  border: none;
+  border-radius: var(--sv-radius-lg);
+  background: var(--sv-color-surface);
+  box-shadow: var(--sv-shadow-overlay);
+  padding: 0;
+  width: 22rem;
+  max-width: calc(100vw - var(--sv-space-8));
+}
+
+.dialog::backdrop {
+  background: var(--sv-color-scrim);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-6);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: 600;
+  color: var(--sv-color-text-primary);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+  color: var(--sv-color-text-subtle);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.option {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--sv-space-2) var(--sv-space-3);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.cancel {
+  all: unset;
+  align-self: center;
+  padding: var(--sv-space-1) var(--sv-space-2);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+  border-radius: var(--sv-radius-sm);
+}
+
+.cancel:hover {
+  color: var(--sv-color-text-primary);
+}

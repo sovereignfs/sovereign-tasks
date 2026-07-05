@@ -18,6 +18,7 @@ export interface TaskRow {
   favorite: boolean;
   dueDate: string | null;
   dueTime: string | null;
+  recurrenceRule: string | null;
   subtaskCount: number;
   subtaskDoneCount: number;
 }

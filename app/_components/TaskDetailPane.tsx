@@ -4,12 +4,14 @@ import { Checkbox, EmptyState, Icon } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { deleteTask, toggleComplete, updateTask } from '../_lib/actions';
+import { deleteTask, setRecurrenceRule, toggleComplete, updateTask } from '../_lib/actions';
 import DueDateControl from './DueDateControl';
 import ListPickerControl from './ListPickerControl';
+import RecurrenceEditor from './RecurrenceEditor';
 import StarButton from './StarButton';
 import SubtaskList from './SubtaskList';
 import styles from './TaskDetailPane.module.css';
+import { useEditScope } from './useEditScope';
 
 interface DetailTask {
   id: string;
@@ -21,6 +23,8 @@ interface DetailTask {
   favorite: boolean;
   dueDate: string | null;
   dueTime: string | null;
+  recurrenceRule: string | null;
+  seriesId: string | null;
 }
 
 interface ListOption {
@@ -67,6 +71,7 @@ function DetailBody({
   const [notes, setNotes] = useState(task.notes ?? '');
   const [pending, setPending] = useState(false);
   const [, startTransition] = useTransition();
+  const { requestScope, dialog: editScopeDialog } = useEditScope(task.seriesId);
 
   const isComplete = task.completedAt !== null;
   const closeHref = `/tasks/${listId}`;
@@ -74,9 +79,11 @@ function DetailBody({
   function commitTitle() {
     const t = title.trim();
     if (t && t !== task.title) {
-      startTransition(async () => {
-        await updateTask(task.id, task.listId, { title: t });
-        router.refresh();
+      requestScope((scope) => {
+        startTransition(async () => {
+          await updateTask(task.id, task.listId, { title: t }, scope);
+          router.refresh();
+        });
       });
     } else if (!t) {
       setTitle(task.title);
@@ -86,11 +93,20 @@ function DetailBody({
   function commitNotes() {
     const n = notes.trim();
     if (n !== (task.notes ?? '')) {
-      startTransition(async () => {
-        await updateTask(task.id, task.listId, { notes: n || undefined });
-        router.refresh();
+      requestScope((scope) => {
+        startTransition(async () => {
+          await updateTask(task.id, task.listId, { notes: n || undefined }, scope);
+          router.refresh();
+        });
       });
     }
+  }
+
+  function commitRecurrence(rule: string | null, scope: 'this' | 'future' | 'all') {
+    startTransition(async () => {
+      await setRecurrenceRule(task.id, task.listId, rule, scope);
+      router.refresh();
+    });
   }
 
   async function handleToggle(checked: boolean) {
@@ -162,7 +178,20 @@ function DetailBody({
         dueDate={task.dueDate}
         dueTime={task.dueTime}
         completedAt={task.completedAt}
+        requestScope={requestScope}
       />
+
+      {task.parentId === null && (
+        <>
+          <span className={styles.sectionLabel}>Repeat</span>
+          <RecurrenceEditor
+            rule={task.recurrenceRule}
+            dueDate={task.dueDate}
+            onCommit={commitRecurrence}
+            requestScope={requestScope}
+          />
+        </>
+      )}
 
       {task.parentId === null && (
         <SubtaskList
@@ -187,6 +216,8 @@ function DetailBody({
         <Icon name="trash-2" size="sm" aria-hidden />
         Delete task
       </button>
+
+      {editScopeDialog}
     </div>
   );
 }

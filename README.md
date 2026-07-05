@@ -2,7 +2,7 @@
 
 A minimal, privacy-first task manager for [Sovereign](https://github.com/sovereignfs/sovereign).
 
-**Status:** v0.3 — active development  
+**Status:** v0.4 — active development  
 **Plugin ID:** `fs.sovereign.tasks`  
 **Route:** `/tasks`
 
@@ -12,7 +12,7 @@ A minimal, privacy-first task manager for [Sovereign](https://github.com/soverei
 
 A clean, self-hosted alternative to Google Tasks. The UI is intentionally minimal and will support multiple layouts — starting with **Compact** (a focused list view), with Kanban and Visualizer views planned for later milestones.
 
-On the web it's a **three-column home**: list sidebar · task list · task detail. Tasks support subtasks (one level deep), optional notes, completion, manual drag-reorder (lists and tasks), **due dates** (via a custom calendar picker, with overdue styling), a **star/favourite** toggle, per-list **filters** (All / Active / Overdue) with a collapsible Completed section, **cross-list search**, and per-list **colour**. The detail pane (opened by selecting a task) is where notes, due date, subtasks, and a task's **list** (move it to a different list) are edited.
+On the web it's a **three-column home**: list sidebar · task list · task detail. Tasks support subtasks (one level deep), optional notes, completion, manual drag-reorder (lists and tasks), **due dates** (via a custom calendar picker, with overdue styling), **recurrence** (daily/weekly/monthly/yearly/every-N/specific weekdays, matching Google Tasks' own repeat picker), a **star/favourite** toggle, per-list **filters** (All / Active / Overdue) with a collapsible Completed section, **cross-list search**, and per-list **colour**. The detail pane (opened by selecting a task) is where notes, due date, repeat, subtasks, and a task's **list** (move it to a different list) are edited.
 
 Sovereign Tasks runs on your own Sovereign instance. Users sign in with their Sovereign account; data is stored on and synced through your instance server.
 

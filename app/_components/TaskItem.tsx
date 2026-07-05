@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
+import { summaryLabel } from '../_lib/recurrence';
 import type { TaskRow } from '../_lib/types';
 import GripIcon from './GripIcon';
 import ProgressRing from './ProgressRing';
@@ -79,9 +80,19 @@ export default function TaskItem({ task, showCompleted, selected, onMutated }: P
             {task.title}
           </span>
           {task.notes && <span className={styles.note}>{task.notes}</span>}
-          {task.dueDate && (
-            <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
-              {formatDueDate(task.dueDate, task.dueTime)}
+          {(task.dueDate || task.recurrenceRule) && (
+            <span className={styles.dueRow}>
+              {task.dueDate && (
+                <span className={[styles.due, overdue ? styles.overdue : ''].filter(Boolean).join(' ')}>
+                  {formatDueDate(task.dueDate, task.dueTime)}
+                </span>
+              )}
+              {task.recurrenceRule && (
+                <span className={styles.repeatIndicator}>
+                  <Icon name="rotate-ccw" size="sm" aria-hidden />
+                  {summaryLabel(task.recurrenceRule)}
+                </span>
+              )}
             </span>
           )}
         </Link>

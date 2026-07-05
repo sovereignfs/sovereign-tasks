@@ -169,12 +169,12 @@ selection surface. Do not call Console/admin user routes.
 Recurrence is implemented using the `rrule` npm package (sv-RFC 5545 RRULE). No
 custom recurrence logic is written.
 
-| ID     | Requirement                                                                                                                                                                                                   |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TSK-22 | Set a recurrence rule on a task. Supported patterns: daily; weekly; monthly; yearly; every N days; every N weeks; specific weekdays (e.g. Mon + Wed + Fri); nth day of month (e.g. last Friday of the month). |
-| TSK-23 | Completing a recurring task marks it done and generates a new sibling task for the next occurrence (same `series_id`, `recurrence_rule`, list, and assignee).                                                 |
-| TSK-24 | Editing a recurring task prompts the user: edit this instance only / this and all future instances / all instances.                                                                                           |
-| TSK-25 | Recurring tasks display their recurrence pattern (human-readable summary) in the task UI.                                                                                                                     |
+| ID     | Requirement                                                                                                                                                                                                   | Status |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| TSK-22 | Set a recurrence rule on a task. Supported patterns: daily; weekly; monthly; yearly; every N days; every N weeks; specific weekdays (e.g. Mon + Wed + Fri); nth day of month (e.g. last Friday of the month). | ⚠️ Shipped minus "nth day of month" — matches Google Tasks' own repeat picker as the v1 reference; deferred as the most complex picker UI for the fewest real cases. |
+| TSK-23 | Completing a recurring task marks it done and generates a new sibling task for the next occurrence (same `series_id`, `recurrence_rule`, list, and assignee).                                                 | ✅ New instance starts with no subtasks — not mentioned in this requirement's own wording, and carrying forward a partially-done checklist indefinitely is ambiguous. |
+| TSK-24 | Editing a recurring task prompts the user: edit this instance only / this and all future instances / all instances.                                                                                           | ✅ Gates title, notes, due date, and the recurrence rule itself. Star, list-move, and delete act on the single instance only — not meaningfully series-wide concepts. Due-date "future/all" scope propagates the *time* only; each occurrence keeps its own calendar date (overwriting every occurrence's date to one literal value would collapse the series). |
+| TSK-25 | Recurring tasks display their recurrence pattern (human-readable summary) in the task UI.                                                                                                                     | ✅ Detail pane (full text via `rrule`'s `.toText()`) and a small repeat icon on the task row (`Icon name="rotate-ccw"` — closest match in `packages/ui`; no dedicated icon exists there). |
 
 ## Directory structure
 
@@ -449,11 +449,21 @@ Overdue), cross-list search, keyboard shortcuts, bulk delete and move.
 styling; keyboard shortcuts cover the core actions; bulk select operates on
 multiple tasks in one action.
 
-### v0.4 — Recurrence (TSK-22–25)
+### v0.4 — Recurrence (TSK-22–25) — shipped ahead of phasing
 
-Full recurrence via the `rrule` package. Generate-next-instance model on
-completion. Edit-this / this-and-future / all modes. Human-readable rule
-display.
+Common patterns via the `rrule` package (daily/weekly/monthly/yearly, every-N,
+specific weekdays), matching Google Tasks' own repeat picker; "nth day of
+month" deferred. Generate-next-instance model on completion. Edit-this /
+this-and-future / all modes, gated to title/notes/due-date/recurrence-rule
+edits only. Human-readable rule display.
+
+**Verified:** `rrule` operates on UTC internally — constructing its `dtstart`
+(or any date passed to `.after()`) from a *local* `new Date(y, m, d)` silently
+shifts which weekday matches a `byweekday` rule by one day on servers with a
+positive UTC offset (caught via a throwaway smoke-test script before wiring
+into server actions, per the task's own verification step). `recurrence.ts`
+constructs and reads back every rrule-facing date via `Date.UTC(...)` /
+`getUTC*()`, not this plugin's own local-date helpers in `date.ts`.
 
 **Done when:** A recurring task generates a correctly-dated next instance on
 completion; editing a recurring task presents the three-mode prompt; the
@@ -482,6 +492,7 @@ external plugin developers.
 
 | Version | Date     | Change                                                                              |
 | ------- | -------- | ----------------------------------------------------------------------------------- |
+| 0.6     | Jul 2026 | Recurrence (TSK-22–25) shipped ahead of the roadmap's own ordering — daily/weekly/monthly/yearly/every-N/specific-weekdays patterns (matching Google Tasks' picker; "nth day of month" deferred), generate-next-instance on completion, a three-way edit-scope prompt (this/future/all) gated to title/notes/due-date/recurrence-rule, and a human-readable pattern shown in both the detail pane and a row icon. |
 | 0.5     | Jul 2026 | Detail-pane polish: custom `CalendarGrid` due-date picker (replacing the native date input), a List field to move a task to a different list (TSK-27), boxed subtask cards with a count label, delete-task confirmation styling. Sidebar drag-reorder for lists, floating (non-reserved-gutter) drag handles replacing `DragHandleRow` in both the sidebar and task rows, and a fix for `@dnd-kit`'s `DndContext` SSR/hydration ID mismatch (explicit `id` prop on both contexts). |
 | 0.4     | Jul 2026 | Three-column web home (lists · tasks · detail); due dates, filters, cross-list search, and a `favorite` column landed ahead of the original phasing. Collaboration and recurrence remain deferred. |
 | 0.3     | Jun 2026 | Narrowed v0.1 to private tasks; moved collaboration after user-directory support.   |
