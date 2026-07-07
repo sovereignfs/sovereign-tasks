@@ -439,6 +439,7 @@ export default function TasksPane({
 
   return (
     <div className={styles.pane} suppressHydrationWarning>
+      <div className={styles.stickyTop}>
       <header className={styles.header}>
         <div className={styles.titleRow} ref={titleRowRef}>
           <span className={styles.dot} style={{ background: listDotColor(list.color) }} aria-hidden />
@@ -626,6 +627,29 @@ export default function TasksPane({
         </div>
       </header>
 
+      <div className={styles.addRow}>
+        <span className={styles.addPlus} aria-hidden>
+          +
+        </span>
+        <input
+          ref={addInputRef}
+          className={styles.addInput}
+          placeholder="Add a task and press Enter…"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleAddTask();
+          }}
+        />
+      </div>
+      </div>
+
+      {/* Dialogs render in the native <dialog> top layer once shown (see
+          showModal() in the effects above) — their position here in the tree
+          doesn't affect where they appear on screen, so moving them outside
+          .stickyTop (they used to sit between .header and .addRow) has no
+          visual effect; keeps the sticky wrapper containing only the two
+          elements it's actually meant to pin. */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <dialog
         ref={deleteDialogRef}
@@ -679,22 +703,6 @@ export default function TasksPane({
           </div>
         </div>
       </dialog>
-
-      <div className={styles.addRow}>
-        <span className={styles.addPlus} aria-hidden>
-          +
-        </span>
-        <input
-          ref={addInputRef}
-          className={styles.addInput}
-          placeholder="Add a task and press Enter…"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleAddTask();
-          }}
-        />
-      </div>
 
       <DndContext
         id="tasks-dnd"
