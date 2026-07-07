@@ -10,20 +10,50 @@
   display: flex;
   flex-direction: column;
   gap: var(--sv-space-4);
-  padding: var(--sv-space-5);
+  /* Top is owned by .top itself (see below — it needs its own self-contained
+     padding to look right whether stuck or not). Bottom is generous +
+     safe-area-aware so .delete has real breathing room above the mobile
+     shell's bottom nav. Padding (not a margin on .delete) is what actually
+     reaches the scroll container — MobileFullPageOverlay's panel is a plain
+     block scroll container now (see its own comment for why), and a
+     descendant's own padding reliably extends a plain block scroll
+     container's reachable area, unlike a trailing child margin. */
+  padding: 0 var(--sv-space-5) calc(var(--sv-space-8) + env(safe-area-inset-bottom));
   /* Lets .delete's margin-top: auto push it to the bottom of the pane when
      content is short, instead of sitting right after the last section. */
   min-height: 100%;
   box-sizing: border-box;
+  /* .top (below) needs an opaque background while stuck, but the correct
+     colour differs by context: white (--sv-color-surface) inside
+     MobileFullPageOverlay's panel on mobile, vs. the desktop three-column
+     layout's grey-tinted .detailCol (page.module.css). inherit — rather than
+     hardcoding one — picks up whichever this row's direct parent actually
+     has, exactly as ListSidebar's .item/.rowInner already does for the same
+     reason. */
+  background-color: inherit;
 }
 
 .top {
+  /* Pinned to the top of whatever scrolls this pane (MobileFullPageOverlay's
+     panel on mobile; column 3's own scroll container on desktop) — the
+     close control must stay reachable without scrolling back up. Carries its
+     own padding + opaque background instead of relying on .body's (removed
+     above) so it looks identical stuck or not, and negative side margins
+     extend it edge-to-edge past .body's own horizontal padding so scrolled
+     content never peeks out from the sides while stuck. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   /* flex-start, not center — now that .title can wrap to multiple lines
      (see below), centering would align the checkbox/star/close against the
      whole multi-line block instead of just its first line. */
   align-items: flex-start;
   gap: var(--sv-space-2);
+  margin: 0 calc(-1 * var(--sv-space-5));
+  padding: var(--sv-space-5) var(--sv-space-5) var(--sv-space-3);
+  background-color: inherit;
+  border-bottom: 1px solid var(--sv-color-border);
 }
 
 .title {
@@ -115,26 +145,28 @@
   border-color: var(--sv-color-accent);
 }
 
+/* Padding/height come from Button's own md size class now — same class the
+   list-edit sheet's Save button uses, so the two full-page sheets' bottom
+   buttons match height exactly. Colour is overridden back to this button's
+   original filled look (Button's built-in "destructive" variant is an
+   outline style, not filled) — .delete.delete (repeated class) beats
+   .destructive on specificity regardless of the two CSS modules' bundling
+   order, without needing !important. */
 .delete {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sv-space-2);
   align-self: stretch;
-  justify-content: center;
   /* auto pushes it to the bottom of .body (min-height: 100%) when the other
      sections don't fill the pane; still sits right after List when content
-     overflows and the pane scrolls. */
+     overflows and the pane scrolls — .body's own padding-bottom (see its
+     comment) is what guarantees breathing room below it either way. */
   margin-top: auto;
-  padding: var(--sv-space-2) var(--sv-space-3);
-  font-size: var(--sv-font-size-sm);
-  color: var(--sv-color-error-text);
-  background: var(--sv-color-error-surface);
-  border-radius: var(--sv-radius-md);
-  cursor: pointer;
-  transition: background-color 0.1s ease;
 }
 
-.delete:hover {
-  background: var(--sv-color-error-border);
+.delete.delete {
+  background-color: var(--sv-color-error-surface);
+  color: var(--sv-color-error-text);
+  border-color: transparent;
+}
+
+.delete.delete:hover {
+  background-color: var(--sv-color-error-border);
 }

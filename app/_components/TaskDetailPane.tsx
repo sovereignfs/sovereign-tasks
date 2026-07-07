@@ -1,9 +1,9 @@
 'use client';
 
-import { Checkbox, EmptyState, Icon } from '@sovereignfs/ui';
+import { Button, Checkbox, EmptyState, Icon } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useLayoutEffect, useRef, useState, useTransition } from 'react';
+import { useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { deleteTask, setRecurrenceRule, toggleComplete, updateTask } from '../_lib/actions';
 import DueDateControl from './DueDateControl';
 import ListPickerControl from './ListPickerControl';
@@ -37,10 +37,21 @@ export default function TaskDetailPane({
   task,
   listId,
   lists,
+  onFieldPatch,
 }: {
   task: DetailTask | null;
   listId: string;
   lists: ListOption[];
+  /**
+   * Called synchronously with a partial update the moment an optimistic
+   * toggle (completion, star) fires here — see StarButton's
+   * onOptimisticChange doc comment for why this is needed. Only meaningful
+   * on mobile, where MobileTasksCarousel passes its own detailTask patcher;
+   * desktop's page.tsx doesn't provide one since router.refresh() there
+   * already re-renders this pane with fresh server props within the same
+   * transition.
+   */
+  onFieldPatch?: (patch: Partial<DetailTask>) => void;
 }) {
   if (!task) {
     return (
@@ -54,22 +65,33 @@ export default function TaskDetailPane({
     );
   }
   // Key by id so switching tasks re-initialises the edit buffers.
-  return <DetailBody key={task.id} task={task} listId={listId} lists={lists} />;
+  return (
+    <DetailBody key={task.id} task={task} listId={listId} lists={lists} onFieldPatch={onFieldPatch} />
+  );
 }
 
 function DetailBody({
   task,
   listId,
   lists,
+  onFieldPatch,
 }: {
   task: DetailTask;
   listId: string;
   lists: ListOption[];
+  onFieldPatch?: (patch: Partial<DetailTask>) => void;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes ?? '');
-  const [pending, setPending] = useState(false);
+  // Optimistic completion — same reasoning as TaskItem's checkbox: flip
+  // instantly instead of waiting on the toggleComplete round trip. onFieldPatch
+  // keeps mobile's detailTask cache in sync so the optimistic value doesn't
+  // revert once this transition settles (see StarButton's doc comment).
+  const [isComplete, setOptimisticComplete] = useOptimistic(
+    task.completedAt !== null,
+    (_prev: boolean, next: boolean) => next,
+  );
   const [, startTransition] = useTransition();
   const { requestScope, dialog: editScopeDialog } = useEditScope(task.seriesId);
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -86,7 +108,6 @@ function DetailBody({
     el.style.height = `${el.scrollHeight}px`;
   }, [title]);
 
-  const isComplete = task.completedAt !== null;
   const closeHref = `/tasks/${listId}`;
 
   function commitTitle() {
@@ -122,11 +143,13 @@ function DetailBody({
     });
   }
 
-  async function handleToggle(checked: boolean) {
-    setPending(true);
-    await toggleComplete(task.id, task.listId, checked);
-    router.refresh();
-    setPending(false);
+  function handleToggle(checked: boolean) {
+    startTransition(async () => {
+      setOptimisticComplete(checked);
+      onFieldPatch?.({ completedAt: checked ? Math.floor(Date.now() / 1000) : null });
+      await toggleComplete(task.id, task.listId, checked);
+      router.refresh();
+    });
   }
 
   function handleDelete() {
@@ -148,7 +171,6 @@ function DetailBody({
           checked={isComplete}
           onChange={handleToggle}
           label=""
-          disabled={pending}
           aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
         />
         <textarea
@@ -178,6 +200,7 @@ function DetailBody({
           taskId={task.id}
           listId={task.listId}
           favorite={task.favorite}
+          onOptimisticChange={(next) => onFieldPatch?.({ favorite: next })}
           className={styles.star}
         />
         <Link href={closeHref} replace className={styles.close} aria-label="Close details">
@@ -249,10 +272,10 @@ function DetailBody({
         </>
       )}
 
-      <button type="button" className={styles.delete} onClick={handleDelete}>
+      <Button variant="destructive" className={styles.delete} onClick={handleDelete}>
         <Icon name="trash-2" size="sm" aria-hidden />
         Delete task
-      </button>
+      </Button>
 
       {editScopeDialog}
     </div>

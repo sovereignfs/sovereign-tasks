@@ -1,0 +1,29 @@
+/* MobileFullPageOverlay — fills the same rect as a carousel slide (between
+   the shell's sticky header and MobileNav's footer), sliding up from the
+   bottom instead of Drawer's partial-height sheet-over-scrim. z-index matches
+   Drawer's scrim so it layers consistently with any other overlay. */
+.panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--sv-shell-header-height, 0);
+  bottom: var(--sv-shell-footer-height, 0);
+  z-index: 100;
+  /* Deliberately block, not flex — a flex column here combined with the
+     content's own min-height: 100% child was clipping that child's trailing
+     padding out of the reachable scroll area in testing (a known class of
+     browser quirk with overflow:auto flex containers + percentage-height flex
+     items). The single child (TaskDetailPane's .body / the rename sheet)
+     already manages its own internal flex layout regardless of what this
+     wrapper is. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--sv-color-surface);
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  outline: none;
+}
+
+.panelOpen {
+  transform: translateY(0);
+}
