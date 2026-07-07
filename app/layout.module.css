@@ -11,8 +11,12 @@
   overflow-y: auto;
   /* Recessed grey flank (matches the detail pane); the centre task pane is white.
      Nudged a touch darker than --sv-color-surface-sunken via color-mix so it
-     stays theme-correct in dark mode (derives from the semantic token). */
-  background: color-mix(in srgb, var(--sv-color-surface-sunken), var(--sv-color-text-primary) 3%);
+     stays theme-correct in dark mode (derives from the semantic token).
+     Exposed as a custom property so ListSidebar.module.css's .item can match
+     it exactly (list rows blend into the flank instead of sitting on their
+     own white slab) without duplicating the color-mix expression. */
+  --tasks-sidebar-bg: color-mix(in srgb, var(--sv-color-surface-sunken), var(--sv-color-text-primary) 3%);
+  background: var(--tasks-sidebar-bg);
 }
 
 .content {

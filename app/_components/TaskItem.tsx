@@ -4,7 +4,7 @@ import { Checkbox, Icon } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
 import { summaryLabel } from '../_lib/recurrence';
@@ -53,7 +53,6 @@ export default function TaskItem({
   dragDisabled = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [pending, setPending] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClick = useRef(false);
 
@@ -63,16 +62,29 @@ export default function TaskItem({
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
-  const isComplete = task.completedAt !== null;
+  // Optimistic completion: the checkbox flips instantly on tap instead of
+  // waiting on toggleComplete's DB round trip (subtask cascade + main update
+  // + recurring-task spawn check, all sequential) plus whatever refresh
+  // onMutated triggers — on mobile that chain is 2-3 stacked network round
+  // trips, which read as the tap simply not registering. React reverts this
+  // back to `task.completedAt` once the transition below settles.
+  const [isComplete, setOptimisticComplete] = useOptimistic(
+    task.completedAt !== null,
+    (_prev: boolean, next: boolean) => next,
+  );
+  const [, startTransition] = useTransition();
   const hasSubtasks = task.subtaskCount > 0;
-  const overdue = isOverdue(task.dueDate, task.completedAt);
+  // Uses the optimistic value (not task.completedAt) so a just-checked task's
+  // overdue badge also clears immediately rather than lingering until refresh.
+  const overdue = !isComplete && isOverdue(task.dueDate, null);
   const detailHref = `/tasks/${task.listId}?task=${task.id}`;
 
-  async function handleToggle(checked: boolean) {
-    setPending(true);
-    await toggleComplete(task.id, task.listId, checked);
-    onMutated();
-    setPending(false);
+  function handleToggle(checked: boolean) {
+    startTransition(async () => {
+      setOptimisticComplete(checked);
+      await toggleComplete(task.id, task.listId, checked);
+      onMutated();
+    });
   }
 
   function clearLongPressTimer() {
@@ -139,7 +151,6 @@ export default function TaskItem({
           checked={isComplete}
           onChange={handleToggle}
           label=""
-          disabled={pending}
           aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
         />
 
