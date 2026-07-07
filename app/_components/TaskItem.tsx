@@ -5,9 +5,10 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
-import { toggleComplete } from '../_lib/actions';
+import { deleteTask, toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
 import { summaryLabel } from '../_lib/recurrence';
+import { useIsMobile } from '../_lib/useIsMobile';
 import type { TaskRow } from '../_lib/types';
 import GripIcon from './GripIcon';
 import ProgressRing from './ProgressRing';
@@ -18,6 +19,12 @@ import styles from './TaskItem.module.css';
 // TSK-20/21: how long a touch must be held before it counts as a long-press
 // (the touch equivalent of a desktop ctrl/cmd-click) to enter bulk-select.
 const LONG_PRESS_MS = 500;
+
+// Mobile-only swipe-to-reveal (Done + Delete) — width per button (px), must
+// match .swipeDoneBtn/.swipeDeleteBtn's own width in TaskItem.module.css. Two
+// buttons, unlike ListSidebar's single Delete action.
+const SWIPE_BTN_WIDTH = 64;
+const SWIPE_REVEAL_WIDTH = SWIPE_BTN_WIDTH * 2;
 
 interface Props {
   task: TaskRow;
@@ -30,6 +37,21 @@ interface Props {
   /** Ctrl/cmd-click or long-press toggles this row's membership in the bulk selection. */
   onBulkToggle?: (taskId: string) => void;
   onMutated: () => void;
+  /**
+   * Called synchronously with a partial update the moment an optimistic
+   * toggle (completion, star) fires on this row — see StarButton's
+   * onOptimisticChange doc comment for why. Only provided by TasksPane when
+   * it's rendered inside MobileTasksCarousel's own decoupled task cache;
+   * undefined on desktop, where router.refresh() already re-renders with
+   * fresh server props within the same transition.
+   */
+  onFieldPatch?: (patch: Partial<TaskRow>) => void;
+  /** Mobile swipe-to-reveal (Done/Delete) — lifted to TasksPane so opening
+   *  one row's reveal auto-closes any other, same coordination pattern as
+   *  ListSidebar's swipeOpenId. */
+  swipeOpen?: boolean;
+  onSwipeOpen?: () => void;
+  onSwipeClose?: () => void;
   /**
    * True whenever TasksPane's sortBy isn't 'manual'. Dragging a row while the
    * list is displayed in a derived order (date/due date/title) would compute
@@ -50,11 +72,25 @@ export default function TaskItem({
   bulkSelected = false,
   onBulkToggle,
   onMutated,
+  onFieldPatch,
+  swipeOpen = false,
+  onSwipeOpen,
+  onSwipeClose,
   dragDisabled = false,
 }: Props) {
+  const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(false);
+  // Instant local hide on Delete — deleteTask + onMutated's eventual refresh
+  // still run, but the row doesn't sit there for that round trip.
+  const [locallyDeleted, setLocallyDeleted] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressNextClick = useRef(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{
+    startX: number;
+    startY: number;
+    locked: 'horizontal' | 'vertical' | null;
+  } | null>(null);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -82,7 +118,73 @@ export default function TaskItem({
   function handleToggle(checked: boolean) {
     startTransition(async () => {
       setOptimisticComplete(checked);
+      onFieldPatch?.({ completedAt: checked ? Math.floor(Date.now() / 1000) : null });
       await toggleComplete(task.id, task.listId, checked);
+      onMutated();
+    });
+  }
+
+  // Mobile swipe-to-reveal (Done + Delete), same edge-zone technique as
+  // ListSidebar's swipe-to-delete: a drag can only *start* from the narrow
+  // .swipeEdgeZone strip in .row's own right padding (see TaskItem.module.css)
+  // so a swipe starting anywhere else on the row still becomes the mobile
+  // carousel's native swipe-between-lists gesture, not this reveal.
+  function handleRowPointerDown(e: React.PointerEvent) {
+    if (!isMobile) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragState.current = { startX: e.clientX, startY: e.clientY, locked: null };
+  }
+
+  function handleRowPointerMove(e: React.PointerEvent) {
+    const state = dragState.current;
+    if (!state) return;
+    const dx = e.clientX - state.startX;
+    const dy = e.clientY - state.startY;
+    if (!state.locked) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      state.locked = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+    if (state.locked !== 'horizontal') return;
+    e.preventDefault();
+    const base = swipeOpen ? -SWIPE_REVEAL_WIDTH : 0;
+    const next = Math.min(0, Math.max(-SWIPE_REVEAL_WIDTH, base + dx));
+    if (rowRef.current) rowRef.current.style.transform = `translateX(${next}px)`;
+  }
+
+  function handleRowPointerUp(e: React.PointerEvent) {
+    const state = dragState.current;
+    dragState.current = null;
+    if (!state || state.locked !== 'horizontal') return;
+    const dx = e.clientX - state.startX;
+    const base = swipeOpen ? -SWIPE_REVEAL_WIDTH : 0;
+    const finalX = Math.min(0, Math.max(-SWIPE_REVEAL_WIDTH, base + dx));
+    if (rowRef.current) rowRef.current.style.transform = '';
+    if (finalX < -SWIPE_REVEAL_WIDTH / 2) onSwipeOpen?.();
+    else onSwipeClose?.();
+  }
+
+  // While the reveal is open, any tap on the row's own content (checkbox,
+  // title, star…) closes it instead of performing that element's normal
+  // action — otherwise the tap needed to dismiss the reveal would also
+  // toggle/navigate/star. Capture phase + preventDefault so it beats the
+  // checkbox's own native check-on-click before onChange ever fires.
+  function handleRowClickCapture(e: React.MouseEvent) {
+    if (!swipeOpen) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onSwipeClose?.();
+  }
+
+  function handleSwipeComplete() {
+    onSwipeClose?.();
+    handleToggle(!isComplete);
+  }
+
+  function handleSwipeDelete() {
+    onSwipeClose?.();
+    setLocallyDeleted(true);
+    startTransition(async () => {
+      await deleteTask(task.id, task.listId);
       onMutated();
     });
   }
@@ -121,6 +223,8 @@ export default function TaskItem({
     }
   }
 
+  if (locallyDeleted) return null;
+
   return (
     <div
       ref={setNodeRef}
@@ -146,7 +250,33 @@ export default function TaskItem({
           <GripIcon />
         </button>
       )}
-      <div className={styles.row}>
+      {/* Mobile-only swipe-to-reveal, sitting behind .row (see its own
+          z-index/position in the CSS) — .row has an opaque, inherited
+          background so this stays hidden until dragged into view. */}
+      <div className={styles.swipeActionsBg} aria-hidden={!swipeOpen}>
+        <button
+          type="button"
+          className={styles.swipeDoneBtn}
+          aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
+          onClick={handleSwipeComplete}
+        >
+          {isComplete ? 'Undo' : 'Done'}
+        </button>
+        <button
+          type="button"
+          className={styles.swipeDeleteBtn}
+          aria-label={`Delete "${task.title}"`}
+          onClick={handleSwipeDelete}
+        >
+          Delete
+        </button>
+      </div>
+      <div
+        ref={rowRef}
+        className={styles.row}
+        style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
+        onClickCapture={handleRowClickCapture}
+      >
         <Checkbox
           checked={isComplete}
           onChange={handleToggle}
@@ -214,8 +344,23 @@ export default function TaskItem({
             listId={task.listId}
             favorite={task.favorite}
             onMutated={onMutated}
+            onOptimisticChange={(next) => onFieldPatch?.({ favorite: next })}
           />
         </div>
+        {isMobile && (
+          // The only region a swipe-to-reveal drag can start from — sits in
+          // .row's own empty right padding (beyond .right's actual content),
+          // so it never overlaps the star/progress-ring tap targets. See
+          // .swipeEdgeZone in TaskItem.module.css.
+          <div
+            className={styles.swipeEdgeZone}
+            aria-hidden
+            onPointerDown={handleRowPointerDown}
+            onPointerMove={handleRowPointerMove}
+            onPointerUp={handleRowPointerUp}
+            onPointerCancel={handleRowPointerUp}
+          />
+        )}
       </div>
 
       {expanded && (

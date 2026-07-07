@@ -47,6 +47,15 @@ interface Props {
   showCompleted: boolean;
   listId: string;
   selectedTaskId: string | null;
+  /**
+   * Called synchronously with a partial update the moment an optimistic
+   * toggle (completion, star) fires on a row here — see StarButton's
+   * onOptimisticChange doc comment for why. Only provided by
+   * MobileTasksCarousel (which keeps its own decoupled task cache); absent
+   * on desktop's page.tsx, where router.refresh() already re-renders this
+   * pane with fresh server props within the same transition.
+   */
+  onTaskFieldPatch?: (taskId: string, patch: Partial<TaskRow>) => void;
 }
 
 // Elements that should swallow single-letter shortcuts because the user is
@@ -79,6 +88,7 @@ export default function TasksPane({
   showCompleted: initialShowCompleted,
   listId,
   selectedTaskId,
+  onTaskFieldPatch,
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -142,6 +152,10 @@ export default function TasksPane({
   const [focusedId, setFocusedId] = useState<string | null>(null);
   // TSK-20/21 — bulk selection (ctrl/cmd-click or long-press on a row).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Mobile swipe-to-reveal (Done/Delete) — a single id (not a Set) means
+  // opening one row's reveal via a prop-driven re-render automatically slides
+  // any previously-open row shut, same pattern as ListSidebar's swipeOpenId.
+  const [swipeOpenTaskId, setSwipeOpenTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -703,6 +717,12 @@ export default function TasksPane({
                 bulkSelected={selectedIds.has(task.id)}
                 onBulkToggle={toggleBulkSelect}
                 onMutated={refresh}
+                onFieldPatch={onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined}
+                swipeOpen={swipeOpenTaskId === task.id}
+                onSwipeOpen={() => setSwipeOpenTaskId(task.id)}
+                onSwipeClose={() =>
+                  setSwipeOpenTaskId((id) => (id === task.id ? null : id))
+                }
                 dragDisabled={sortBy !== 'manual'}
               />
             ))}
@@ -742,6 +762,12 @@ export default function TasksPane({
                   bulkSelected={selectedIds.has(task.id)}
                   onBulkToggle={toggleBulkSelect}
                   onMutated={refresh}
+                  onFieldPatch={onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined}
+                  swipeOpen={swipeOpenTaskId === task.id}
+                  onSwipeOpen={() => setSwipeOpenTaskId(task.id)}
+                  onSwipeClose={() =>
+                    setSwipeOpenTaskId((id) => (id === task.id ? null : id))
+                  }
                   dragDisabled={sortBy !== 'manual'}
                 />
               ))}

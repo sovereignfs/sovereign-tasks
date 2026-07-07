@@ -1,7 +1,15 @@
 .wrapper {
   /* Relative anchor for the floating drag handle (no reserved gutter — see
-     .dragHandle). Mirrors ListSidebar's .item. */
+     .dragHandle) and for .swipeActionsBg (mobile swipe-to-reveal — see
+     .row/.swipeActionsBg below). Mirrors ListSidebar's .item. background-color
+     is explicit (not the default transparent) so .row's own
+     `background-color: inherit` always resolves to whatever this row's
+     current background actually is (default/selected/bulk-selected),
+     without needing its own separate state. The task pane's own background
+     already is --sv-color-surface (white; see layout.module.css's .content),
+     so this isn't introducing a new colour, just making it explicit here too. */
   position: relative;
+  background-color: var(--sv-color-surface);
   border-bottom: 1px solid var(--sv-color-border);
 }
 
@@ -75,6 +83,77 @@
      star/ring/chevron cluster. */
   padding: var(--sv-space-3) var(--sv-space-5);
   min-height: 44px;
+  /* Mobile swipe-to-reveal: this is the sliding foreground layer, positioned
+     above .swipeActionsBg (z-index) with an opaque background (inherited from
+     .wrapper, whatever its current state) so Done/Delete stay hidden until
+     dragged into view. touch-action is left at its default (auto) here —
+     deliberately, so a horizontal touch drag starting anywhere on the row is
+     free to become the mobile carousel's native swipe-between-lists gesture.
+     Only .swipeEdgeZone below restricts touch-action, so the reveal can only
+     ever be *started* from a narrow strip at the row's right edge. */
+  position: relative;
+  z-index: 1;
+  background-color: inherit;
+  transition: transform 0.2s ease;
+}
+
+/* Mobile swipe-to-reveal's actions, behind .row. Sized/positioned so only
+   their combined width (SWIPE_REVEAL_WIDTH in TaskItem.tsx) is ever exposed,
+   however far .row slides. */
+.swipeActionsBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.swipeDoneBtn {
+  all: unset;
+  width: 64px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sv-color-success-surface);
+  color: var(--sv-color-success-text);
+  font-size: var(--sv-font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.swipeDeleteBtn {
+  all: unset;
+  width: 64px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sv-color-error-surface);
+  color: var(--sv-color-error-text);
+  font-size: var(--sv-font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Mobile-only hotspot pinned to .row's right edge, sized to exactly match its
+   own right padding (--sv-space-5) — the row's real content (checkbox, title,
+   star/progress-ring cluster) ends at that padding's inner edge, so this sits
+   entirely in the empty gutter beyond it and never overlaps the star button's
+   tap target. touch-action: pan-y tells the browser to leave horizontal touch
+   drags starting *here* to our own JS pointer handlers instead of treating
+   them as a native scroll gesture, while still allowing vertical page scroll
+   to pass through. Transparent and non-visual; only present to claim this
+   region's touch-action and host the pointer handlers. */
+.swipeEdgeZone {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--sv-space-5);
+  z-index: 2;
+  touch-action: pan-y;
 }
 
 .main {
