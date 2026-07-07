@@ -97,11 +97,24 @@
   outline: none;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-2);
+}
+
+/* Plain text link — not a @sovereignfs/ui Button, deliberately, so it reads
+   as a quiet, secondary action next to Done's actual primary button (see
+   the "Better UI" discussion this replaced: two bordered buttons of equal
+   visual weight looked like they were competing). Since this is a plain
+   <button>, not composed with Button's own variant classes, there's no
+   specificity/bundle-order fight to account for here. */
 .clear {
   all: unset;
   text-align: center;
-  padding: var(--sv-space-1);
-  font-size: var(--sv-font-size-xs);
+  padding: var(--sv-space-1) var(--sv-space-2);
+  font-size: var(--sv-font-size-sm);
   color: var(--sv-color-error-text);
   cursor: pointer;
   border-radius: var(--sv-radius-sm);

@@ -3,7 +3,7 @@
 import { Checkbox, EmptyState, Icon } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { deleteTask, setRecurrenceRule, toggleComplete, updateTask } from '../_lib/actions';
 import DueDateControl from './DueDateControl';
 import ListPickerControl from './ListPickerControl';
@@ -72,6 +72,19 @@ function DetailBody({
   const [pending, setPending] = useState(false);
   const [, startTransition] = useTransition();
   const { requestScope, dialog: editScopeDialog } = useEditScope(task.seriesId);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grows the title textarea to fit its content (no drag handle, unlike
+  // Notes below it — a header shouldn't have a manual-resize affordance).
+  // Standard technique: reset to 'auto' first so shrinking (deleting text)
+  // is measured correctly, then set to the resulting scrollHeight. Runs
+  // before paint (useLayoutEffect) so there's no visible height jump.
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
 
   const isComplete = task.completedAt !== null;
   const closeHref = `/tasks/${listId}`;
@@ -138,21 +151,35 @@ function DetailBody({
           disabled={pending}
           aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
         />
-        <input
+        <textarea
+          ref={titleRef}
           className={[styles.title, isComplete ? styles.complete : ''].filter(Boolean).join(' ')}
           value={title}
+          rows={1}
           aria-label="Task title"
           onChange={(e) => setTitle(e.target.value)}
           onBlur={commitTitle}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            // Unlike Notes, title never allows an inserted newline — even
+            // though the box can now wrap across multiple lines, it's
+            // conceptually still one continuous string, not multi-paragraph
+            // content. Enter always saves regardless of Shift.
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              (e.target as HTMLTextAreaElement).blur();
+            }
             if (e.key === 'Escape') {
               setTitle(task.title);
-              (e.target as HTMLInputElement).blur();
+              (e.target as HTMLTextAreaElement).blur();
             }
           }}
         />
-        <StarButton taskId={task.id} listId={task.listId} favorite={task.favorite} />
+        <StarButton
+          taskId={task.id}
+          listId={task.listId}
+          favorite={task.favorite}
+          className={styles.star}
+        />
         <Link href={closeHref} replace className={styles.close} aria-label="Close details">
           ✕
         </Link>

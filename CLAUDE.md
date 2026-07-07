@@ -91,16 +91,22 @@ Console admin user routes as a workaround.
   param on `/tasks/[listId]`; it collapses below ~900px (tablet — no detail
   sheet substitute at this width; unchanged, low priority). Select a task via
   `<Link href="?task=id">`; close with `<Link replace href="/tasks/[listId]">`.
-- **Desktop list management is split across double-click and a col-2 header
-  menu, not a single combined `⋯` menu** (that only exists on mobile — see
-  "Mobile shell"): double-clicking a list's title (col 1 sidebar row or col 2
-  header) renames it; double-clicking the colour dot opens just the swatch
-  picker. Delete and "Sort by" (Manual/Date created/Due date/Title A-Z,
+- **List management is split across double-click/double-tap and a col-2
+  header menu, shared by desktop and mobile** (col 2's `⋯` menu is no longer
+  desktop-only — see "Mobile shell"): double-clicking/double-tapping a list's
+  title (col 1 sidebar row or col 2 header) renames it; double-clicking the
+  colour dot opens just the swatch picker (desktop only — mobile's dot is a
+  plain indicator, colour lives in the sidebar's own combined rename+colour
+  drawer instead). "Sort by" (Manual/Date created/Due date/Title A-Z,
   client-side only — not persisted, resets on navigation like the `filter`
-  control) live in a `⋯` menu at the end of col 2's header, after the Filter
-  control. Colour is the one sanctioned splash in the monochrome UI — the
-  fixed swatch set is in `app/_lib/colors.ts`; it renders only as the small
-  list dot.
+  control), "Delete completed tasks" (bulk-deletes every completed task in
+  the list via `bulkDeleteTasks`, shown only when the list has at least one;
+  confirms via the same native `<dialog>` pattern as Delete list), and
+  Delete list live in a `⋯` menu at the end of col 2's header, after the
+  Filter control (folded into the same menu when Filter itself doesn't fit
+  inline next to the title). Colour is the one sanctioned splash in the
+  monochrome UI — the fixed swatch set is in `app/_lib/colors.ts`; it renders
+  only as the small list dot.
 - **Drag-reorder is disabled whenever Sort by isn't Manual.** Dragging while
   the list displays a derived order would compute the wrong move — dnd-kit
   only sees the sorted view's index positions, not the underlying manual
@@ -230,7 +236,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.7.0**
+Current version: **0.8.0**
 
 ## Running locally
 

@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Button, Icon, Popover, SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
+import { useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import BulkActionBar from '../_components/BulkActionBar';
 import TaskItem from '../_components/TaskItem';
 import {
@@ -32,6 +32,7 @@ import {
 } from '../_lib/actions';
 import { isOverdue } from '../_lib/date';
 import { listDotColor } from '../_lib/colors';
+import { measureTextWidth } from '../_lib/measureText';
 import { SORT_OPTIONS, sortTasks, type SortBy } from '../_lib/sort';
 import { useIsMobile } from '../_lib/useIsMobile';
 import type { ListRow, TaskRow } from '../_lib/types';
@@ -86,17 +87,49 @@ export default function TasksPane({
   const [_isPending, startTransition] = useTransition();
   const addInputRef = useRef<HTMLInputElement>(null);
 
-  // Desktop only — rename-via-double-click on the title, and the header
-  // options menu (sort + delete). Mobile keeps managing these through
-  // ListSidebar's own actions Drawer on the Lists index slide instead; see
-  // CLAUDE.md's "Mobile shell" section for why mobile stays on its own model.
+  // Rename-via-double-click on the title stays desktop only — there's no
+  // touch equivalent of a double-click, so mobile keeps renaming through
+  // ListSidebar's own actions Drawer on the Lists index slide instead (see
+  // CLAUDE.md's "Mobile shell" section). The header options menu (Filter
+  // when folded, Sort by, Delete list) below is shared with mobile — same
+  // responsive inline-vs-menu logic on both, since mobile screens are just a
+  // narrower case of the same "does Filter fit next to the title" question.
   const [renaming, setRenaming] = useState(false);
   const [renameTitle, setRenameTitle] = useState(list.title);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  // Pixel-accurate width for the rename input (see _lib/measureText) — a
+  // `ch`-unit estimate looked visibly too wide for this font/weight and
+  // space-heavy titles. Re-measured on every keystroke against the input's
+  // own computed font, so it grows/shrinks live instead of jumping once on
+  // entering edit mode.
+  const [renameInputWidth, setRenameInputWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!renaming) return;
+    const el = renameInputRef.current;
+    if (!el) return;
+    const width = measureTextWidth(renameTitle || ' ', el);
+    if (width !== null) setRenameInputWidth(width + 4);
+  }, [renaming, renameTitle]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('manual');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const [deleteCompletedOpen, setDeleteCompletedOpen] = useState(false);
+  const deleteCompletedDialogRef = useRef<HTMLDialogElement>(null);
+
+  // Whether Filter fits inline in the title row (next to the options menu)
+  // instead of folding into that menu. Measured against a hidden "shadow"
+  // copy of the fully-inline row (same markup/classes, position: absolute +
+  // visibility: hidden so it never affects real layout or a11y) rather than
+  // manually summing up dot/title/count/filter/menu widths plus gaps by
+  // hand — the shadow row lets the browser's own layout do that arithmetic,
+  // so it stays correct even if gaps/padding change later. Defaults to false
+  // (menu-only) for SSR/first paint, matching useIsMobile's own safe-default
+  // pattern, then corrected once the client can actually measure. The effect
+  // itself is below, after `active` (one of its dependencies) is computed.
+  const [filterFitsInline, setFilterFitsInline] = useState(false);
+  const titleRowRef = useRef<HTMLDivElement>(null);
+  const shadowRowRef = useRef<HTMLDivElement>(null);
 
   const [tasks, applyTaskAction] = useOptimistic(initialTasks, tasksReducer);
   const [completedOpen, setCompletedOpen] = useOptimistic(
@@ -116,17 +149,38 @@ export default function TasksPane({
   );
 
   const active = tasks.filter((t) => t.completedAt === null);
+
+  useEffect(() => {
+    const row = titleRowRef.current;
+    const shadow = shadowRowRef.current;
+    if (!row || !shadow) return;
+
+    function recompute() {
+      if (!row || !shadow) return;
+      setFilterFitsInline(shadow.offsetWidth <= row.clientWidth);
+    }
+
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [list.title, active.length]);
+
   const activeFiltered =
     filter === 'overdue' ? active.filter((t) => isOverdue(t.dueDate, t.completedAt)) : active;
-  // Sort is only actually applied on desktop (see sortBy's own comment) —
-  // mobile's sortBy state stays 'manual' since its header never renders the
-  // menu that would change it, so sortTasks is always a no-op there anyway.
-  const activeVisible = sortTasks(activeFiltered, sortBy);
+  // 'all' shows every task — completed included — together in the main
+  // list, in place, instead of splitting completed ones off into the
+  // separate collapsible section below. Marking a task done while viewing
+  // "All" should leave it exactly where it is, not move it anywhere.
+  const activeVisible = sortTasks(filter === 'all' ? tasks : activeFiltered, sortBy);
   const completed = sortTasks(
     tasks.filter((t) => t.completedAt !== null),
     sortBy,
   );
-  const showCompletedSection = filter !== 'overdue' && completed.length > 0;
+  // The separate section only makes sense for 'active' (where completed
+  // tasks are otherwise hidden from the main list) — 'overdue' excludes
+  // completed tasks by definition, and 'all' already shows them inline above.
+  const showCompletedSection = filter === 'active' && completed.length > 0;
   const completedExpanded = filter === 'all' || completedOpen;
 
   useEffect(() => {
@@ -150,6 +204,22 @@ export default function TasksPane({
     const el = deleteDialogRef.current;
     if (!el) return;
     const handleClose = () => setDeleteOpen(false);
+    el.addEventListener('close', handleClose);
+    return () => el.removeEventListener('close', handleClose);
+  }, []);
+
+  // Same native <dialog> pattern, for confirming "Delete completed tasks".
+  useEffect(() => {
+    const el = deleteCompletedDialogRef.current;
+    if (!el) return;
+    if (deleteCompletedOpen) el.showModal();
+    else el.close();
+  }, [deleteCompletedOpen]);
+
+  useEffect(() => {
+    const el = deleteCompletedDialogRef.current;
+    if (!el) return;
+    const handleClose = () => setDeleteCompletedOpen(false);
     el.addEventListener('close', handleClose);
     return () => el.removeEventListener('close', handleClose);
   }, []);
@@ -184,6 +254,19 @@ export default function TasksPane({
     startTransition(async () => {
       await deleteList(listId);
       router.push('/tasks');
+      router.refresh();
+    });
+  }
+
+  // Reuses bulkDeleteTasks (already tenant-scoped, cascades to subtasks) —
+  // completed already holds every completed task in this list regardless of
+  // the current filter, so no separate server action is needed just to
+  // scope "delete completed" down to one list.
+  function confirmDeleteCompleted() {
+    setDeleteCompletedOpen(false);
+    const ids = completed.map((t) => t.id);
+    startTransition(async () => {
+      await bulkDeleteTasks(ids, listId);
       router.refresh();
     });
   }
@@ -343,12 +426,19 @@ export default function TasksPane({
   return (
     <div className={styles.pane} suppressHydrationWarning>
       <header className={styles.header}>
-        <div className={styles.titleRow}>
+        <div className={styles.titleRow} ref={titleRowRef}>
           <span className={styles.dot} style={{ background: listDotColor(list.color) }} aria-hidden />
           {renaming ? (
             <input
               ref={renameInputRef}
               className={styles.titleInput}
+              // Pixel-measured width (see the useLayoutEffect above) instead
+              // of stretching to fill the row — keeps the input close to the
+              // title's own footprint while editing, matching how it looked
+              // as plain text. Falls back to a ch-based guess only for the
+              // very first paint, before the layout effect has measured
+              // anything yet.
+              style={{ width: renameInputWidth ?? `${renameTitle.length + 2}ch` }}
               value={renameTitle}
               aria-label={`Rename "${list.title}"`}
               onChange={(e) => setRenameTitle(e.target.value)}
@@ -378,17 +468,23 @@ export default function TasksPane({
           <span className={styles.count}>
             {active.length} {active.length === 1 ? 'task' : 'tasks'}
           </span>
-        </div>
-        <div className={styles.headerActions}>
-          <SegmentedControl<Filter>
-            value={filter}
-            onChange={setFilter}
-            options={FILTERS}
-            size="sm"
-            aria-label="Filter tasks"
-          />
-          {!isMobile && (
-            <Popover
+          <span className={styles.spacer} aria-hidden />
+          {/* Filter renders inline here (next to the menu) when
+              filterFitsInline says there's room for it — otherwise it folds
+              into the menu below instead, so it's never lost, just relocated
+              depending on available space and title length. Same logic on
+              mobile as desktop; a mobile screen just hits the "doesn't fit"
+              branch more often. */}
+          {filterFitsInline && (
+            <SegmentedControl<Filter>
+              value={filter}
+              onChange={setFilter}
+              options={FILTERS}
+              size="sm"
+              aria-label="Filter tasks"
+            />
+          )}
+          <Popover
               open={menuOpen}
               onClose={() => setMenuOpen(false)}
               align="right"
@@ -406,6 +502,30 @@ export default function TasksPane({
               }
             >
               <div className={styles.menu}>
+                {!filterFitsInline && (
+                  <>
+                    <span className={styles.menuLabel}>Filter</span>
+                    {FILTERS.map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        className={[
+                          styles.menuItem,
+                          filter === f.value ? styles.menuItemActive : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => {
+                          setFilter(f.value);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                    <div className={styles.menuDivider} />
+                  </>
+                )}
                 <span className={styles.menuLabel}>Sort by</span>
                 {SORT_OPTIONS.map((opt) => (
                   <button
@@ -426,6 +546,18 @@ export default function TasksPane({
                   </button>
                 ))}
                 <div className={styles.menuDivider} />
+                {completed.length > 0 && (
+                  <button
+                    type="button"
+                    className={[styles.menuItem, styles.menuDanger].join(' ')}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setDeleteCompletedOpen(true);
+                    }}
+                  >
+                    Delete completed tasks
+                  </button>
+                )}
                 <button
                   type="button"
                   className={[styles.menuItem, styles.menuDanger].join(' ')}
@@ -437,8 +569,46 @@ export default function TasksPane({
                   Delete list
                 </button>
               </div>
-            </Popover>
-          )}
+          </Popover>
+        </div>
+        {/* Hidden measurement-only clone of the fully-inline row (dot + title
+            + count + spacer + Filter + menu button), used to decide
+            filterFitsInline above. position: absolute + visibility: hidden
+            means it never affects real layout, and is automatically removed
+            from both the tab order and the accessibility tree (unlike
+            opacity: 0, which keeps an element focusable) — aria-hidden is
+            added anyway for clarity of intent. Rendering the *real* CSS
+            classes here (not hand-summed widths) is what lets this measure
+            gaps/padding correctly without duplicating that arithmetic. */}
+        <div
+          ref={shadowRowRef}
+          className={styles.titleRow}
+          style={{
+            position: 'absolute',
+            visibility: 'hidden',
+            pointerEvents: 'none',
+            top: -9999,
+            left: 0,
+            width: 'max-content',
+          }}
+          aria-hidden
+        >
+          <span className={styles.dot} style={{ background: listDotColor(list.color) }} />
+          <h1 className={styles.title}>{list.title}</h1>
+          <span className={styles.count}>
+            {active.length} {active.length === 1 ? 'task' : 'tasks'}
+          </span>
+          <span className={styles.spacer} />
+          <SegmentedControl<Filter>
+            value={filter}
+            onChange={() => {}}
+            options={FILTERS}
+            size="sm"
+            aria-label="Filter tasks"
+          />
+          <button type="button" className={styles.menuBtn} aria-label="Options">
+            <Icon name="ellipsis-vertical" size="sm" aria-hidden />
+          </button>
         </div>
       </header>
 
@@ -463,6 +633,34 @@ export default function TasksPane({
             </Button>
             <Button variant="destructive" onClick={confirmDeleteList}>
               Delete list
+            </Button>
+          </div>
+        </div>
+      </dialog>
+
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
+      <dialog
+        ref={deleteCompletedDialogRef}
+        className={styles.confirmNativeDialog}
+        aria-label="Delete completed tasks"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setDeleteCompletedOpen(false);
+        }}
+      >
+        <div className={styles.confirm}>
+          <h2 className={styles.confirmTitle}>
+            Delete {completed.length} completed {completed.length === 1 ? 'task' : 'tasks'}
+          </h2>
+          <p className={styles.confirmText}>
+            This permanently removes every completed task in "{list.title}" and their subtasks.
+            This can't be undone.
+          </p>
+          <div className={styles.confirmActions}>
+            <Button variant="secondary" onClick={() => setDeleteCompletedOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteCompleted}>
+              Delete completed tasks
             </Button>
           </div>
         </div>

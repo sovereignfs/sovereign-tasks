@@ -1,6 +1,6 @@
 'use client';
 
-import { Popover } from '@sovereignfs/ui';
+import { Button, Popover } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { setDueDate } from '../_lib/actions';
@@ -9,13 +9,6 @@ import CalendarGrid from './CalendarGrid';
 import CalendarIcon from './CalendarIcon';
 import styles from './DueDateControl.module.css';
 import type { EditScope } from './useEditScope';
-
-// Matches the "No due date" trigger's rendered width exactly: the detail pane
-// is a fixed 340px column (see [listId]/page.module.css), and TaskDetailPane's
-// .body has --sv-space-5 (20px) padding on each side — 340 - 40 = 300. Safe to
-// hardcode since the pane never resizes (it's hidden below the 900px
-// breakpoint, not shrunk).
-const POPOVER_WIDTH = 300;
 
 interface Props {
   taskId: string;
@@ -41,9 +34,9 @@ export default function DueDateControl({
   const [, startTransition] = useTransition();
   const overdue = isOverdue(dueDate, completedAt);
 
-  // Used for calendar-date and time selection — keeps the popover open so
-  // picking a date reveals the (now relevant) time field inline, rather than
-  // closing and forcing a reopen to set a time.
+  // Used for the time field — keeps the popover open, since reopening it to
+  // set a time (see commitAndClose below) already lands directly on a
+  // visible Time field; there's nothing gained by closing on every keystroke.
   function commit(date: string | null, time: string | null) {
     requestScope((scope) => {
       startTransition(async () => {
@@ -53,8 +46,10 @@ export default function DueDateControl({
     });
   }
 
-  // Used for quick-picks and "Clear due date" — one-shot actions where
-  // there's nothing else to do in the popover afterwards.
+  // Used for quick-picks, calendar-date selection, and "Clear due date" —
+  // one-shot actions that close the popover immediately. If the user also
+  // wants a time, they reopen (the Time field is already visible once a date
+  // is set) and close explicitly via "Done" once finished.
   function commitAndClose(date: string | null, time: string | null) {
     commit(date, time);
     setOpen(false);
@@ -81,7 +76,11 @@ export default function DueDateControl({
       open={open}
       onClose={() => setOpen(false)}
       align="left"
-      width={POPOVER_WIDTH}
+      // Matches the trigger's own rendered width exactly — a fixed pixel
+      // value assumed the desktop-only 340px detail column and was too
+      // narrow on the mobile detail drawer, where this control spans the
+      // drawer's full width instead.
+      width="trigger"
       aria-label="Set due date"
     >
       <div className={styles.panel}>
@@ -97,7 +96,7 @@ export default function DueDateControl({
           </button>
         </div>
 
-        <CalendarGrid value={dueDate} onSelect={(d) => commit(d, dueTime)} />
+        <CalendarGrid value={dueDate} onSelect={(d) => commitAndClose(d, dueTime)} />
 
         {dueDate && (
           <label className={styles.field}>
@@ -111,9 +110,18 @@ export default function DueDateControl({
         )}
 
         {dueDate && (
-          <button type="button" className={styles.clear} onClick={() => commitAndClose(null, null)}>
-            Clear due date
-          </button>
+          <div className={styles.actions}>
+            {/* Plain text link, not a bordered Button — Done is the actual
+                primary action here; giving Clear its own matching button
+                chrome made the two compete for attention instead of reading
+                as "main action + a quieter, secondary one". */}
+            <button type="button" className={styles.clear} onClick={() => commitAndClose(null, null)}>
+              Clear due date
+            </button>
+            <Button variant="primary" size="sm" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </div>
         )}
       </div>
     </Popover>

@@ -86,8 +86,14 @@
 .item {
   /* Relative anchor for the floating drag handle (no reserved gutter — the
      handle overlays the same 16px indent the content already sits at, so
-     rows line up with the "My lists" heading and search box above them). */
+     rows line up with the "My lists" heading and search box above them) and
+     for .swipeDeleteBg (mobile swipe-to-delete — see .rowInner/.swipeDeleteBg
+     below). background-color is explicit (not the default transparent) so
+     .rowInner's own `background-color: inherit` always resolves to whatever
+     this row's current background actually is (default/hover/active),
+     without needing its own separate state. */
   position: relative;
+  background-color: var(--sv-color-surface);
   transition: background-color 0.1s ease;
 }
 
@@ -147,10 +153,49 @@
   justify-content: space-between;
   min-width: 0;
   /* Right padding matches the header's exactly (--sv-space-4) so the count
-     lines up in the same column as the "+" button above — .menuBtn no longer
-     reserves flex space (see below), so nothing pushes the count off that
-     column. */
+     lines up in the same column as the "+" button above. */
   padding: var(--sv-space-2) var(--sv-space-4) var(--sv-space-2) var(--sv-space-5);
+  /* Mobile swipe-to-delete: this is the sliding foreground layer, positioned
+     above .swipeDeleteBg (z-index) with an opaque background (inherited from
+     .item, whatever its current state) so the delete action stays hidden
+     until dragged into view. touch-action: pan-y tells the browser to leave
+     horizontal touch drags on this element to our own JS (ListSidebar.tsx's
+     pointer handlers) instead of treating them as a native scroll gesture —
+     otherwise the outer carousel's own horizontal swipe-between-slides would
+     compete with dragging this row. The transition animates the snap to
+     open/closed on release; mid-drag, the handlers set transform directly on
+     the DOM node instead, bypassing this transition for immediate feedback. */
+  position: relative;
+  z-index: 1;
+  background-color: inherit;
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+
+/* Mobile swipe-to-delete's revealed action, behind .rowInner. Sized/positioned
+   so only its right edge (width matching ListSidebar.tsx's
+   SWIPE_REVEAL_WIDTH constant) is ever exposed, however far .rowInner slides. */
+.swipeDeleteBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.swipeDeleteBtn {
+  all: unset;
+  width: 72px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sv-color-error-surface);
+  color: var(--sv-color-error-text);
+  font-size: var(--sv-font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .link {
@@ -163,6 +208,8 @@
   color: var(--sv-color-text-primary);
 }
 
+/* Mobile: a plain, non-interactive indicator — colour lives in the combined
+   rename+colour drawer instead (see ListItem). */
 .dot {
   width: 8px;
   height: 8px;
@@ -215,93 +262,34 @@
   margin-right: 3px;
 }
 
-/* .menuBtn (mobile only — see below) overlays this same corner while its
-   Drawer is open, so the count still needs to fade out for that one case.
-   Desktop has no competing floating element in this corner any more (the
-   old combined actions menu was removed — see ListItem), so the count now
-   stays visible through hover/focus there. */
-.menuOpenRow .count {
-  opacity: 0;
-}
-
-/* Mobile only (see ListItem's isMobile check) — desktop's equivalent lives in
-   TasksPane's header menu instead. */
-.menuBtn {
-  all: unset;
-  /* Floats over the row's right corner (mirrors .dragHandle on the left)
-     instead of reserving its own flex width — with no reserved space, the
-     count's flow position lines up exactly with the header's "+" button.
-     The count fades out while this is open (.menuOpenRow, see .count rules
-     above) so the two never occupy the same corner at the same time.
-
-     right matches the header's own right padding exactly (not an arbitrary
-     small inset) — both buttons are the same 22px box, so matching the
-     offset reproduces the "+" button's exact position, centers included. */
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--sv-radius-sm);
-  color: var(--sv-color-text-subtle);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.1s ease, color 0.1s ease, background-color 0.1s ease;
-}
-
-.item:hover .menuBtn,
-.item:focus-within .menuBtn,
-.menuOpenRow .menuBtn {
-  opacity: 1;
-}
-
-.menuBtn:hover {
-  /* surface-sunken, not surface: .item:hover's background is surface-raised,
-     which equals surface in light mode (both var(--sv-white)) — that hover
-     would have been invisible (same bug fixed on .menuItem elsewhere in this
-     file). */
-  background: var(--sv-color-surface-sunken);
-  color: var(--sv-color-text-primary);
-}
-
-.menu {
-  display: flex;
-  flex-direction: column;
-  /* No extra flex gap between rows — each row's own padding already provides
-     consistent, even spacing (an added gap on top made Rename/Delete look
-     further apart than everything else in the menu). */
-  padding: var(--sv-space-1);
-}
-
+/* The colour popover's swatch grid — same one dot trigger (double-click or
+   double-tap) on both desktop and mobile now, so no separate "standalone vs.
+   combined-menu" variant is needed any more. justify-content: center with a
+   fixed, generous gap (rather than space-between, whose gap shrinks to
+   whatever the popover's own width happens to leave over) keeps the 6
+   swatches evenly spaced regardless of this popover's fixed 180px width. */
 .swatches {
   display: flex;
   align-items: center;
-  /* Spread the swatches across the full row instead of clustering left —
-     there are only 5 colours in the design system today (matching
-     packages/ui's primitive families), so this fills the space with what
-     exists rather than leaving dead space on the right. */
-  justify-content: space-between;
-  gap: var(--sv-space-1);
-  padding: var(--sv-space-1) var(--sv-space-2);
-  border-bottom: 1px solid var(--sv-color-border);
-  margin-bottom: var(--sv-space-1);
+  justify-content: center;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-2) var(--sv-space-3);
 }
 
-/* Desktop's standalone colour popover (double-click the dot) has nothing
-   below the swatches — the border-bottom/margin-bottom above exist to
-   separate swatches from the Rename/Delete rows that follow them in the
-   mobile actions Drawer's combined menu, which doesn't apply here. */
-.swatchesStandalone {
-  border-bottom: none;
-  margin-bottom: 0;
+/* Mobile's combined rename+colour drawer (showLabels — see ColorSwatches):
+   space-between across the sheet's full width instead of a fixed gap, and no
+   popover-sized padding, since this isn't a small floating panel any more. */
+.swatchesLabeled {
+  justify-content: space-between;
+  gap: var(--sv-space-2);
+  padding: 0;
 }
 
 .swatch {
   all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -309,33 +297,41 @@
   box-shadow: 0 0 0 1px var(--sv-color-border);
 }
 
+/* Mobile only (showLabels) — 18px was sized for desktop's compact popover
+   and is too small a touch target on a full-width sheet with room to
+   spare. */
+.swatchLarge {
+  width: 36px;
+  height: 36px;
+}
+
 .swatchActive {
   box-shadow: 0 0 0 2px var(--sv-color-accent);
 }
 
-.menuItem {
-  all: unset;
-  padding: var(--sv-space-2);
-  font-size: var(--sv-font-size-sm);
-  color: var(--sv-color-text-primary);
-  border-radius: var(--sv-radius-sm);
-  cursor: pointer;
+/* All swatch colours in the design system's palette are medium-to-dark
+   tones, so a fixed white checkmark reads clearly against every one of
+   them — no per-colour contrast logic needed. */
+.swatchCheck {
+  color: var(--sv-white);
 }
 
-.menuItem:hover {
-  /* surface-sunken, not surface-raised: the popover panel's own background is
-     --sv-color-surface, which equals --sv-color-surface-raised in light mode
-     (both var(--sv-white)) — that hover was invisible. Sunken is genuinely
-     distinct from the panel background in both modes. */
-  background: var(--sv-color-surface-sunken);
+.swatchCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-1);
+  flex: 1;
+  min-width: 0;
 }
 
-.menuDanger {
-  color: var(--sv-color-error-text);
-}
-
-.menuDanger:hover {
-  background: var(--sv-color-error-surface);
+.swatchName {
+  font-size: 10px;
+  color: var(--sv-color-text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .editRow {

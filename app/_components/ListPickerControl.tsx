@@ -49,7 +49,14 @@ export default function ListPickerControl({ taskId, currentListId, lists }: Prop
   );
 
   return (
-    <Popover trigger={trigger} open={open} onClose={() => setOpen(false)} align="left" aria-label="Move to list">
+    <Popover
+      trigger={trigger}
+      open={open}
+      onClose={() => setOpen(false)}
+      align="left"
+      width="trigger"
+      aria-label="Move to list"
+    >
       <div className={styles.menu}>
         {lists.map((l) => (
           <button

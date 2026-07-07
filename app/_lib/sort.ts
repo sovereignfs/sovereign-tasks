@@ -10,7 +10,7 @@ import type { TaskRow } from './types';
 export type SortBy = 'manual' | 'date' | 'dueDate' | 'title';
 
 export const SORT_OPTIONS: { value: SortBy; label: string }[] = [
-  { value: 'manual', label: 'Manual' },
+  { value: 'manual', label: 'Custom' },
   { value: 'date', label: 'Date created' },
   { value: 'dueDate', label: 'Due date' },
   { value: 'title', label: 'Title (A-Z)' },

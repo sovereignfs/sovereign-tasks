@@ -19,7 +19,10 @@
 
 .top {
   display: flex;
-  align-items: center;
+  /* flex-start, not center — now that .title can wrap to multiple lines
+     (see below), centering would align the checkbox/star/close against the
+     whole multi-line block instead of just its first line. */
+  align-items: flex-start;
   gap: var(--sv-space-2);
 }
 
@@ -31,11 +34,34 @@
   font-weight: 500;
   color: var(--sv-color-text-primary);
   line-height: 1.4;
+  /* Auto-grows via the useLayoutEffect in TaskDetailPane.tsx (measures
+     scrollHeight) rather than a user-draggable handle — resize: none/
+     overflow: hidden keep the browser from adding its own resize affordance
+     or an internal scrollbar that would throw off that measurement.
+     word-break so a single very long unbroken word (e.g. a URL) still wraps
+     instead of overflowing the column width. */
+  resize: none;
+  overflow: hidden;
+  word-break: break-word;
+  /* The checkbox is an 18px box with no internal leading. At this 18px
+     font-size and 1.4 line-height, the textarea's own line box is 25.2px
+     tall, so its first line's glyphs sit ~3.6px below the shared flex-start
+     top even though both elements begin at the same y. Nudge up so the
+     title's visible glyph-top lines up with the checkbox's box-top. */
+  margin-top: -4px;
 }
 
 .complete {
   color: var(--sv-color-text-subtle);
   text-decoration: line-through;
+}
+
+/* StarButton is a shared 24px box also used inside TaskItem's .right row
+   next to .ringBtn (no competing 18px sibling there) — this nudge only
+   applies here, where it sits beside an 18px checkbox at the same
+   flex-start top. Same reasoning as .close below. */
+.star {
+  margin-top: -3px;
 }
 
 .close {
@@ -49,6 +75,11 @@
   text-decoration: none;
   color: var(--sv-color-text-subtle);
   flex-shrink: 0;
+  /* Same 24px-box-vs-18px-checkbox mismatch as .star (see StarButton.module.css)
+     — both boxes start flush at .top's shared y=0, but this one is 6px
+     taller, so its centered glyph sits 3px lower than the checkbox's. Nudge
+     up by half that difference. */
+  margin-top: -3px;
 }
 
 .close:hover {

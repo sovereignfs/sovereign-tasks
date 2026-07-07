@@ -4,7 +4,7 @@ import { Checkbox, Icon } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
 import { summaryLabel } from '../_lib/recurrence';
@@ -81,6 +81,13 @@ export default function TaskItem({
       longPressTimer.current = null;
     }
   }
+
+  // pointerup/pointerleave/pointermove only clear the timer while the row is
+  // still mounted and receiving those events — if the row unmounts mid-press
+  // (its task is deleted/moved by a sync elsewhere while a finger is still
+  // down), none of those fire, and the timeout would otherwise still call
+  // onBulkToggle against a task that's no longer part of the current view.
+  useEffect(() => clearLongPressTimer, []);
 
   function handlePointerDown(e: React.PointerEvent) {
     if (e.pointerType !== 'touch' || !onBulkToggle) return;

@@ -1,6 +1,16 @@
 .bar {
   position: sticky;
   bottom: 0;
+  /* position: sticky sticks to its scrolling ancestor's *padding* edge, not
+     its outer edge — TasksPane's .pane has its own --sv-space-6 bottom
+     padding (breathing room after the last task row), so without this the
+     bar would rest just inside that padding, leaving it visibly floating
+     that much above .pane's true bottom. A matching negative margin extends
+     the bar past the padding to .pane's actual edge — which, on mobile,
+     sits flush against the footer nav (see the runtime shell.module.css
+     fix), making the leftover padding-sized gap very noticeable there even
+     though it was never obvious on desktop with nothing sitting flush below. */
+  margin-bottom: calc(-1 * var(--sv-space-6));
   z-index: 5;
   display: flex;
   align-items: center;

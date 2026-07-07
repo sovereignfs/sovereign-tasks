@@ -61,6 +61,13 @@
 .row {
   display: flex;
   align-items: flex-start;
+  /* Bumped back up from --sv-space-1 to --sv-space-2 — this gap used to
+     silently stack with an 8px phantom gap inside @sovereignfs/ui's
+     Checkbox (its internal flex gap applied even to an empty, invisible
+     label="" element), so the effective checkbox-to-title space was really
+     ~12px, not the 4px this rule alone implied. Now that Checkbox no longer
+     renders that empty label, compensating here keeps the same rough
+     effective spacing instead of silently collapsing to 4px unreviewed. */
   gap: var(--sv-space-2);
   /* Left padding matches TasksPane's header/add-row (--sv-space-5) — no
      reserved drag-handle gutter, so the checkbox lines up with the list dot
@@ -77,6 +84,12 @@
   flex-direction: column;
   gap: 2px;
   text-decoration: none;
+  /* The checkbox is an 18px box with no internal leading; the title's own
+     line-height (1.5 × 14px = 21px) adds ~3.5px of leading above its actual
+     glyphs, so top-aligning the two containers (.row's align-items:
+     flex-start) still left the title looking a couple pixels lower than the
+     checkbox. Nudge the whole block up to compensate. */
+  margin-top: -2px;
 }
 
 .title {

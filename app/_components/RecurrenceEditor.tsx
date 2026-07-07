@@ -13,10 +13,6 @@ import {
 import type { EditScope } from './useEditScope';
 import styles from './RecurrenceEditor.module.css';
 
-// Matches DueDateControl's own hardcoded width — same fixed 340px detail pane,
-// same 20px padding each side.
-const POPOVER_WIDTH = 300;
-
 // Date.getDay() is Sunday-first (0=Sun); rrule/recurrence.ts's own weekday
 // codes are Monday-first internally, but the stored code strings ('SU'..'SA')
 // are the same regardless — this just maps getDay()'s index to that code.
@@ -107,7 +103,7 @@ export default function RecurrenceEditor({ rule, dueDate, onCommit, requestScope
         setCustomOpen(false);
       }}
       align="left"
-      width={POPOVER_WIDTH}
+      width="trigger"
       aria-label="Set recurrence"
     >
       {!customOpen ? (
