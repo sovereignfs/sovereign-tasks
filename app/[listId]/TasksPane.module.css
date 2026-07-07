@@ -9,6 +9,16 @@
      nesting it deeper than the header/add-row (see TaskItem.module.css). */
   padding: var(--sv-space-5) 0 var(--sv-space-6);
   overflow-y: auto;
+  /* Explicit — the global <body> background is --sv-color-surface-sunken (a
+     deliberate neutral canvas elsewhere in the app), while each task row
+     (TaskItem's .wrapper) explicitly paints itself --sv-color-surface. On
+     desktop this pane sits inside page.module.css's .inner, which already
+     sets --sv-color-surface, so it was never visible there — but on mobile,
+     TasksPane renders straight inside MobileTasksCarousel's slide with no
+     such ancestor, so a short task list left the empty space below the last
+     row showing the sunken body colour instead of matching the rows above
+     it (much more visible in dark mode, where the contrast is stronger). */
+  background-color: var(--sv-color-surface);
 }
 
 .header {
