@@ -6,30 +6,9 @@
      rows via TaskItem's own .row, .completedHeader, .empty) applies the same
      --sv-space-5 left/right inset itself. This leaves room for each task
      row's floating drag handle to live inside that shared indent without
-     nesting it deeper than the header/add-row (see TaskItem.module.css).
-     Top is owned by .stickyTop itself (see below — it needs its own
-     self-contained top padding to look right whether stuck or not). */
-  padding: 0 0 var(--sv-space-6);
+     nesting it deeper than the header/add-row (see TaskItem.module.css). */
+  padding: var(--sv-space-5) 0 var(--sv-space-6);
   overflow-y: auto;
-}
-
-/* Pins the title bar + "Add a task" row to the top of .pane while the task
-   list below scrolls underneath — same sticky technique as TaskDetailPane's
-   .top and ListSidebar's .renameSheetHeader. A single wrapper (rather than
-   .header and .addRow each stickying independently) means they stack
-   correctly without needing to hardcode .addRow's top offset to .header's
-   (dynamic, filter-dependent) height. background-color is explicit — .pane
-   itself deliberately has none (the surrounding page background is left
-   showing through in any empty space below a short list), but a sticky
-   header needs to be opaque or scrolled task rows show through it. Matches
-   the rows' own explicit --sv-color-surface (TaskItem.module.css's
-   .wrapper) rather than introducing a third colour. */
-.stickyTop {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding-top: var(--sv-space-5);
-  background-color: var(--sv-color-surface);
 }
 
 .header {
