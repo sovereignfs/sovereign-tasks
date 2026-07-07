@@ -32,6 +32,14 @@ import styles from './ListSidebar.module.css';
 
 interface Props {
   lists: ListRow[];
+  /**
+   * Fires whenever any row's mobile "Edit list" full-page sheet opens or
+   * closes. MobileTasksCarousel uses this to hide its slide-position dots
+   * while the sheet covers the Lists index slide — the dots otherwise kept
+   * showing on top of it (and of TaskDetailPane's own full-page sheet),
+   * which reads as pagination for content that isn't a carousel slide.
+   */
+  onEditingChange?: (editing: boolean) => void;
 }
 
 type ListAction =
@@ -58,7 +66,7 @@ function listsReducer(state: ListRow[], action: ListAction): ListRow[] {
   }
 }
 
-export default function ListSidebar({ lists: initialLists }: Props) {
+export default function ListSidebar({ lists: initialLists, onEditingChange }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [lists, applyListAction] = useOptimistic(initialLists, listsReducer);
@@ -97,6 +105,10 @@ export default function ListSidebar({ lists: initialLists }: Props) {
       renameInputRef.current?.select();
     }
   }, [editingId]);
+
+  useEffect(() => {
+    onEditingChange?.(editingId !== null);
+  }, [editingId, onEditingChange]);
 
   // Native <dialog> for the delete confirmation — sized to content, unlike
   // @sovereignfs/ui's Dialog (a fixed-size box by design for tabbed/multi-view

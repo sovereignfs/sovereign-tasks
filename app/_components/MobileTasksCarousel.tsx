@@ -70,6 +70,9 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
   const [listState, setListState] = useState<Record<string, ListState>>({});
   const [detailTask, setDetailTask] = useState<DetailTask | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // True while ListSidebar's own "Edit list" full-page sheet is open on the
+  // Lists index slide — see ListSidebar's onEditingChange doc comment.
+  const [listEditingOpen, setListEditingOpen] = useState(false);
 
   const activeList = activeIndex > 0 ? (lists[activeIndex - 1] ?? null) : null;
   const taskIdParam = searchParams.get('task');
@@ -307,12 +310,16 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
       : null;
   const displayDetailTask = validDetailTask ?? optimisticDetailTask;
   const showDetailOverlay = !!taskIdParam && (detailLoading || displayDetailTask !== null);
+  // Dots represent position within the slide carousel — meaningless (and,
+  // without this, visible on top of) either full-page sheet, which covers
+  // the whole carousel rather than being one of its slides.
+  const showDots = lists.length > 0 && !showDetailOverlay && !listEditingOpen;
 
   return (
     <div className={styles.wrap}>
       <div className={styles.scroller} ref={scrollRef}>
         <div className={styles.slide}>
-          <ListSidebar lists={lists} />
+          <ListSidebar lists={lists} onEditingChange={setListEditingOpen} />
         </div>
         {lists.map((list) => {
           const state = listState[list.id];
@@ -336,7 +343,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         })}
       </div>
 
-      {lists.length > 0 && (
+      {showDots && (
         <div className={styles.dots} aria-hidden>
           {['index', ...lists.map((l) => l.id)].map((key, i) => (
             <span
