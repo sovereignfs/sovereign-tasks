@@ -75,7 +75,18 @@ function toRRule(pattern: RecurrencePattern, dtstart: Date | null = null): RRule
   return new RRule({
     freq: FREQ_MAP[pattern.freq],
     interval: pattern.interval,
-    byweekday: pattern.byweekday?.map((d) => WEEKDAY_MAP[d]).filter((d) => d !== undefined),
+    // byweekday is only meaningful for WEEKLY (see the field's own doc
+    // comment) — ignored here regardless of what the caller's pattern
+    // carries, since RecurrenceEditor's draft state can retain a stray
+    // single-weekday selection after switching freq away from WEEKLY (the
+    // weekday picker UI disappears, but nothing clears the value). Passing
+    // it straight through to RRule for a non-WEEKLY freq silently narrows
+    // FREQ=MONTHLY;INTERVAL=3 into "every such weekday within the
+    // applicable month" — i.e. days/weeks away, not months away.
+    byweekday:
+      pattern.freq === 'WEEKLY'
+        ? pattern.byweekday?.map((d) => WEEKDAY_MAP[d]).filter((d) => d !== undefined)
+        : undefined,
     until: pattern.until ? parseUTC(pattern.until) : null,
     count: pattern.count ?? null,
     dtstart,

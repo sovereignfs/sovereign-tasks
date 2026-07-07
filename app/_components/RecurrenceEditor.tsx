@@ -150,7 +150,16 @@ export default function RecurrenceEditor({ rule, dueDate, onCommit, requestScope
                 setDraft((d) => ({
                   ...d,
                   freq,
-                  byweekday: freq === 'WEEKLY' ? (d.byweekday?.length ? d.byweekday : [anchorWeekday()]) : d.byweekday,
+                  // byweekday only means anything for WEEKLY (and only the
+                  // weekday pills below, rendered only in that case, let the
+                  // user see/edit it) — clear it on every other frequency so
+                  // a stale single-day selection can't silently ride along
+                  // into e.g. a Monthly rule. recurrence.ts's toRRule also
+                  // ignores byweekday for non-WEEKLY as a second, lower-level
+                  // guarantee, but the draft itself should reflect what's
+                  // actually being configured.
+                  byweekday:
+                    freq === 'WEEKLY' ? (d.byweekday?.length ? d.byweekday : [anchorWeekday()]) : undefined,
                 }));
               }}
             >
