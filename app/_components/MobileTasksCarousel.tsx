@@ -1,12 +1,12 @@
 'use client';
 
-import { Drawer } from '@sovereignfs/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ListSidebar from '../ListSidebar';
 import TasksPane from '../[listId]/TasksPane';
 import { getOrCreatePrefs, getTask, getTasks } from '../_lib/actions';
 import type { ListRow, TaskRow } from '../_lib/types';
+import MobileFullPageOverlay from './MobileFullPageOverlay';
 import TaskDetailPane, { type DetailTask } from './TaskDetailPane';
 import styles from './MobileTasksCarousel.module.css';
 
@@ -108,6 +108,31 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         [listId]: { tasks: [], showCompleted: false, status: 'error' },
       }));
     }
+  }, []);
+
+  // Synchronously patches this carousel's own decoupled task caches the
+  // moment an optimistic toggle (completion, star) fires inside a slide —
+  // see StarButton's onOptimisticChange doc comment for why. Without this,
+  // listState/detailTask stay stale until loadList's/the detailTask effect's
+  // own refetch (triggered by refreshSignal, some time after this same
+  // toggle's transition has already settled) eventually catches up, causing
+  // a visible revert-then-reapply flicker back to the old value.
+  const patchTask = useCallback((taskListId: string, taskId: string, patch: Partial<TaskRow>) => {
+    setListState((s) => {
+      const entry = s[taskListId];
+      if (!entry) return s;
+      return {
+        ...s,
+        [taskListId]: {
+          ...entry,
+          tasks: entry.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+        },
+      };
+    });
+  }, []);
+
+  const patchDetailTask = useCallback((patch: Partial<DetailTask>) => {
+    setDetailTask((t) => (t ? { ...t, ...patch } : t));
   }, []);
 
   // Fetch the active slide plus its immediate neighbors — a single swipe
@@ -268,7 +293,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
   // seriesId, which useEditScope only reads at the moment of a later commit
   // (not captured once at mount), so a temporary null there is harmless.
   // Rendering this immediately instead of a bare "Loading…" placeholder is
-  // what removes the layout jump right after the drawer opens — the content
+  // what removes the layout jump right after the overlay opens — the content
   // is full-sized from the first frame, and swapping in the authoritative
   // fetch afterwards is an invisible, same-shape update, not a remount
   // (TaskDetailPane's inner DetailBody is keyed by task.id, which doesn't
@@ -281,7 +306,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         })()
       : null;
   const displayDetailTask = validDetailTask ?? optimisticDetailTask;
-  const showDrawer = !!taskIdParam && (detailLoading || displayDetailTask !== null);
+  const showDetailOverlay = !!taskIdParam && (detailLoading || displayDetailTask !== null);
 
   return (
     <div className={styles.wrap}>
@@ -301,6 +326,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
                   showCompleted={state.showCompleted}
                   listId={list.id}
                   selectedTaskId={displayDetailTask?.id ?? null}
+                  onTaskFieldPatch={(taskId, patch) => patchTask(list.id, taskId, patch)}
                 />
               ) : (
                 <div className={styles.slideLoading}>Loading…</div>
@@ -321,13 +347,18 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         </div>
       )}
 
-      <Drawer open={showDrawer} onClose={closeDetail} aria-label="Task details">
+      <MobileFullPageOverlay open={showDetailOverlay} onClose={closeDetail} aria-label="Task details">
         {displayDetailTask && activeList ? (
-          <TaskDetailPane task={displayDetailTask} listId={activeList.id} lists={lists} />
+          <TaskDetailPane
+            task={displayDetailTask}
+            listId={activeList.id}
+            lists={lists}
+            onFieldPatch={patchDetailTask}
+          />
         ) : (
           <div className={styles.slideLoading}>Loading…</div>
         )}
-      </Drawer>
+      </MobileFullPageOverlay>
     </div>
   );
 }

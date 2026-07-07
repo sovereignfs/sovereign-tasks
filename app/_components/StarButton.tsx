@@ -11,10 +11,29 @@ interface Props {
   favorite: boolean;
   /** Called after the toggle persists; defaults to router.refresh(). */
   onMutated?: () => void;
+  /**
+   * Called synchronously with the new value the moment the optimistic toggle
+   * fires. Needed by callers whose `favorite` prop is sourced from state
+   * that isn't itself updated within this same transition — e.g. mobile's
+   * MobileTasksCarousel keeps its own decoupled task caches (listState,
+   * detailTask), which only refresh via a separate effect some time later.
+   * Without this, `favorite` stays stale until that refetch lands, and once
+   * this toggle's own transition settles React reverts the optimistic star
+   * back to the (still stale) base value — a visible flip-back-then-
+   * reapply flicker. Patching the caller's own state here closes that gap.
+   */
+  onOptimisticChange?: (next: boolean) => void;
   className?: string;
 }
 
-export default function StarButton({ taskId, listId, favorite, onMutated, className }: Props) {
+export default function StarButton({
+  taskId,
+  listId,
+  favorite,
+  onMutated,
+  onOptimisticChange,
+  className,
+}: Props) {
   const router = useRouter();
   // Same optimistic pattern as TaskItem's checkbox — flip the star instantly
   // instead of waiting on the toggleFavorite round trip (+ whatever refresh
@@ -32,6 +51,7 @@ export default function StarButton({ taskId, listId, favorite, onMutated, classN
     const next = !optimisticFavorite;
     startTransition(async () => {
       setOptimisticFavorite(next);
+      onOptimisticChange?.(next);
       await toggleFavorite(taskId, listId, next);
       if (onMutated) onMutated();
       else router.refresh();

@@ -17,12 +17,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Drawer, Icon, Popover, Tooltip } from '@sovereignfs/ui';
+import { Button, Icon, Popover, Tooltip } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { createList, deleteList, reorderLists, updateList, updateListColor } from './_lib/actions';
 import GripIcon from './_components/GripIcon';
+import MobileFullPageOverlay from './_components/MobileFullPageOverlay';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
 import { useDoubleTapHandler, useSingleOrDoubleTap } from './_lib/doubleTap';
 import { useIsMobile } from './_lib/useIsMobile';
@@ -548,8 +549,8 @@ function ListItem({
   }
 
   // Desktop keeps the inline-edit-swap row exactly as before; on mobile,
-  // renaming happens in its own Drawer (below) instead, so the row itself is
-  // never replaced — matching the mockups' dedicated rename screen.
+  // renaming happens in its own full-page sheet (below) instead, so the row
+  // itself is never replaced — matching the mockups' dedicated rename screen.
   if (editing && !isMobile) {
     return (
       <li ref={setNodeRef} style={style} className={styles.item}>
@@ -686,43 +687,52 @@ function ListItem({
       </div>
 
       {isMobile && (
-        <Drawer open={editing} onClose={() => onRenameCancel(list)} aria-label={`Edit "${list.title}"`}>
+        <MobileFullPageOverlay
+          open={editing}
+          onClose={() => onRenameCancel(list)}
+          aria-label={`Edit "${list.title}"`}
+        >
           <div className={styles.renameSheet}>
             <div className={styles.renameSheetHeader}>
-              <button
-                type="button"
-                className={styles.renameSheetCancel}
-                onClick={() => onRenameCancel(list)}
-              >
-                Cancel
-              </button>
               <span className={styles.renameSheetTitle}>Edit list</span>
               <button
                 type="button"
-                className={styles.renameSheetSave}
+                className={styles.renameSheetClose}
+                aria-label="Close"
+                onClick={() => onRenameCancel(list)}
+              >
+                <Icon name="x" size="sm" aria-hidden />
+              </button>
+            </div>
+            <div className={styles.renameSheetBody}>
+              <label className={styles.renameSheetLabel} htmlFor={`rename-${list.id}`}>
+                List name
+              </label>
+              <input
+                id={`rename-${list.id}`}
+                ref={renameInputRef}
+                className={styles.renameSheetInput}
+                value={editTitle}
+                onChange={(e) => onEditTitleChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onRenameCommit(list);
+                  if (e.key === 'Escape') onRenameCancel(list);
+                }}
+              />
+              <span className={styles.renameSheetLabel}>Colour</span>
+              <ColorSwatches list={list} onColor={onColor} showLabels />
+            </div>
+            <div className={styles.renameSheetFooter}>
+              <Button
+                variant="primary"
+                className={styles.renameSheetSaveBtn}
                 onClick={() => onRenameCommit(list)}
               >
                 Save
-              </button>
+              </Button>
             </div>
-            <label className={styles.renameSheetLabel} htmlFor={`rename-${list.id}`}>
-              List name
-            </label>
-            <input
-              id={`rename-${list.id}`}
-              ref={renameInputRef}
-              className={styles.renameSheetInput}
-              value={editTitle}
-              onChange={(e) => onEditTitleChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onRenameCommit(list);
-                if (e.key === 'Escape') onRenameCancel(list);
-              }}
-            />
-            <span className={styles.renameSheetLabel}>Colour</span>
-            <ColorSwatches list={list} onColor={onColor} showLabels />
           </div>
-        </Drawer>
+        </MobileFullPageOverlay>
       )}
     </li>
   );

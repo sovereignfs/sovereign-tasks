@@ -412,19 +412,41 @@
   gap: var(--sv-space-2);
 }
 
-/* Mobile-only "Edit list" bottom sheet (rename + colour), replacing the
-   desktop inline-edit-swap row. See ListItem's isMobile branch. */
+/* Mobile-only "Edit list" full-page sheet (rename + colour), replacing the
+   desktop inline-edit-swap row. See ListItem's isMobile branch. Fills
+   MobileFullPageOverlay's panel — min-height:100% + .renameSheetFooter's
+   margin-top:auto (below) pins Save to the bottom even when content is
+   short, same technique as TaskDetailPane's .delete/.body. */
 .renameSheet {
   display: flex;
   flex-direction: column;
   gap: var(--sv-space-4);
-  padding: var(--sv-space-5);
+  min-height: 100%;
+  box-sizing: border-box;
+  /* Top is owned by .renameSheetHeader itself (see below). Bottom is
+     generous + safe-area-aware so Save has real breathing room above the
+     mobile shell's bottom nav. Padding (not a margin on .renameSheetFooter)
+     is what actually reaches the scroll container — see
+     MobileFullPageOverlay.module.css's .panel comment. */
+  padding: 0 var(--sv-space-5) calc(var(--sv-space-8) + env(safe-area-inset-bottom));
 }
 
 .renameSheetHeader {
+  /* Pinned to the top of MobileFullPageOverlay's panel — the close control
+     must stay reachable without scrolling back up, same reasoning as
+     TaskDetailPane's .top. Carries its own padding + opaque background
+     instead of relying on .renameSheet's (removed above), with matching
+     negative side margins so it reads edge-to-edge while stuck. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin: 0 calc(-1 * var(--sv-space-5));
+  padding: var(--sv-space-5) var(--sv-space-5) var(--sv-space-3);
+  background: var(--sv-color-surface);
+  border-bottom: 1px solid var(--sv-color-border);
 }
 
 .renameSheetTitle {
@@ -433,17 +455,27 @@
   color: var(--sv-color-text-primary);
 }
 
-.renameSheetCancel,
-.renameSheetSave {
+.renameSheetClose {
   all: unset;
-  font-size: var(--sv-font-size-sm);
-  color: var(--sv-color-text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--sv-radius-sm);
+  color: var(--sv-color-text-subtle);
   cursor: pointer;
-  padding: var(--sv-space-1);
 }
 
-.renameSheetSave {
-  font-weight: 600;
+.renameSheetClose:hover {
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-primary);
+}
+
+.renameSheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
 }
 
 .renameSheetLabel {
@@ -460,4 +492,17 @@
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface-raised);
+}
+
+.renameSheetFooter {
+  /* auto pushes it to the bottom of .renameSheet (min-height: 100%) when the
+     colour swatches don't fill the page; still sits right after them when
+     content overflows and the overlay scrolls — .renameSheet's own
+     padding-bottom (see its comment) guarantees breathing room below it
+     either way. */
+  margin-top: auto;
+}
+
+.renameSheetSaveBtn {
+  width: 100%;
 }
