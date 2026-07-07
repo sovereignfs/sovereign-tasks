@@ -11,9 +11,10 @@ interface Props {
   favorite: boolean;
   /** Called after the toggle persists; defaults to router.refresh(). */
   onMutated?: () => void;
+  className?: string;
 }
 
-export default function StarButton({ taskId, listId, favorite, onMutated }: Props) {
+export default function StarButton({ taskId, listId, favorite, onMutated, className }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -31,7 +32,9 @@ export default function StarButton({ taskId, listId, favorite, onMutated }: Prop
   return (
     <button
       type="button"
-      className={[styles.star, favorite ? styles.on : ''].filter(Boolean).join(' ')}
+      className={[styles.star, favorite ? styles.on : '', className ?? '']
+        .filter(Boolean)
+        .join(' ')}
       aria-pressed={favorite}
       aria-label={favorite ? 'Unstar task' : 'Star task'}
       onClick={toggle}

@@ -24,6 +24,7 @@ import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react
 import { createList, deleteList, reorderLists, updateList, updateListColor } from './_lib/actions';
 import GripIcon from './_components/GripIcon';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
+import { useDoubleTapHandler, useSingleOrDoubleTap } from './_lib/doubleTap';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
@@ -64,12 +65,15 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   const [newTitle, setNewTitle] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  // Desktop-only: the small colour-swatch popover triggered by double-clicking
-  // a list's dot. Separate from menuOpenId (mobile's full actions Drawer,
-  // still rename/colour/delete together) since desktop no longer has a
-  // combined actions menu — see ListItem.
+  // The small colour-swatch popover triggered by double-clicking/double-
+  // tapping a list's dot — same interaction and same Popover on both desktop
+  // and mobile now (see ListItem).
   const [colorPickerOpenId, setColorPickerOpenId] = useState<string | null>(null);
+  // Mobile only — which row (if any) currently has its swipe-to-delete action
+  // revealed. A single id (not a Set) means opening one row's reveal via a
+  // prop-driven re-render automatically slides any previously-open row shut,
+  // with no extra "close the others" plumbing needed — see ListItem.
+  const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ListRow | null>(null);
   const [query, setQuery] = useState('');
   const [, startTransition] = useTransition();
@@ -173,7 +177,6 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   }
 
   function handleColor(list: ListRow, color: string) {
-    setMenuOpenId(null);
     startTransition(async () => {
       applyListAction({ type: 'color', id: list.id, color });
       await updateListColor(list.id, color);
@@ -259,28 +262,27 @@ export default function ListSidebar({ lists: initialLists }: Props) {
                 editing={editingId === list.id}
                 editTitle={editTitle}
                 renameInputRef={renameInputRef}
-                menuOpen={menuOpenId === list.id}
                 colorPickerOpen={colorPickerOpenId === list.id}
+                swipeOpen={swipeOpenId === list.id}
                 onEditTitleChange={setEditTitle}
                 onRenameCommit={handleRenameCommit}
                 onRenameCancel={(l) => {
                   setEditTitle(l.title);
                   setEditingId(null);
                 }}
-                onMenuToggle={() => setMenuOpenId((id) => (id === list.id ? null : list.id))}
-                onMenuClose={() => setMenuOpenId(null)}
                 onColorPickerToggle={() =>
                   setColorPickerOpenId((id) => (id === list.id ? null : list.id))
                 }
                 onColorPickerClose={() => setColorPickerOpenId(null)}
+                onSwipeOpen={() => setSwipeOpenId(list.id)}
+                onSwipeClose={() => setSwipeOpenId(null)}
                 onStartRename={(l) => {
-                  setMenuOpenId(null);
                   setEditingId(l.id);
                   setEditTitle(l.title);
                 }}
                 onColor={handleColor}
                 onRequestDelete={(l) => {
-                  setMenuOpenId(null);
+                  setSwipeOpenId(null);
                   setDeleteTarget(l);
                 }}
               />
@@ -328,18 +330,98 @@ interface ListItemProps {
   editing: boolean;
   editTitle: string;
   renameInputRef: React.RefObject<HTMLInputElement | null>;
-  menuOpen: boolean;
   colorPickerOpen: boolean;
+  swipeOpen: boolean;
   onEditTitleChange: (value: string) => void;
   onRenameCommit: (list: ListRow) => void;
   onRenameCancel: (list: ListRow) => void;
-  onMenuToggle: () => void;
-  onMenuClose: () => void;
   onColorPickerToggle: () => void;
   onColorPickerClose: () => void;
+  onSwipeOpen: () => void;
+  onSwipeClose: () => void;
   onStartRename: (list: ListRow) => void;
   onColor: (list: ListRow, color: string) => void;
   onRequestDelete: (list: ListRow) => void;
+}
+
+// Mobile-only swipe-to-delete reveal width (px) — must match .swipeDeleteBtn's
+// own width in ListSidebar.module.css; kept as one constant here since the
+// drag math (clamping, open/close threshold) needs the same number.
+const SWIPE_REVEAL_WIDTH = 72;
+
+// Shared by desktop's standalone colour popover and mobile's combined
+// rename+colour drawer — same swatch grid, just a different `onPicked` (the
+// popover closes itself after a pick; the drawer stays open so rename and
+// colour can both be adjusted before Cancel/Save) and `showLabels`.
+//
+// showLabels is mobile-only: Tooltip only shows on hover, which touch has no
+// equivalent of, so a touch user had no way to see which colour was which
+// beyond guessing from the swatch itself. showLabels swaps the hover tooltip
+// for an always-visible caption under each swatch and enlarges the swatch
+// itself (was 18px, sized for desktop's compact popover — too small a touch
+// target on a full-width mobile sheet with room to spare). The selected
+// swatch also gets a checkmark on top of the existing ring in both modes —
+// the ring alone was easy to miss.
+function ColorSwatches({
+  list,
+  onColor,
+  onPicked,
+  showLabels = false,
+}: {
+  list: ListRow;
+  onColor: (list: ListRow, color: string) => void;
+  onPicked?: () => void;
+  showLabels?: boolean;
+}) {
+  return (
+    <div
+      className={[styles.swatches, showLabels ? styles.swatchesLabeled : '']
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {LIST_SWATCHES.map((s) => {
+        const isActive = list.color === s.key;
+        const swatchButton = (
+          <button
+            type="button"
+            className={[
+              styles.swatch,
+              showLabels ? styles.swatchLarge : '',
+              isActive ? styles.swatchActive : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{ background: s.token }}
+            aria-label={`Set colour ${s.label}`}
+            aria-pressed={isActive}
+            onClick={() => {
+              onColor(list, s.key);
+              onPicked?.();
+            }}
+          >
+            {isActive && (
+              <Icon
+                name="check"
+                size={showLabels ? 'sm' : 'xs'}
+                className={styles.swatchCheck}
+                aria-hidden
+              />
+            )}
+          </button>
+        );
+        return showLabels ? (
+          <div key={s.key} className={styles.swatchCell}>
+            {swatchButton}
+            <span className={styles.swatchName}>{s.label}</span>
+          </div>
+        ) : (
+          <Tooltip key={s.key} content={s.label} side="bottom">
+            {swatchButton}
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
 }
 
 function ListItem({
@@ -348,24 +430,117 @@ function ListItem({
   editing,
   editTitle,
   renameInputRef,
-  menuOpen,
   colorPickerOpen,
+  swipeOpen,
   onEditTitleChange,
   onRenameCommit,
   onRenameCancel,
-  onMenuToggle,
-  onMenuClose,
   onColorPickerToggle,
   onColorPickerClose,
+  onSwipeOpen,
+  onSwipeClose,
   onStartRename,
   onColor,
   onRequestDelete,
 }: ListItemProps) {
   const isMobile = useIsMobile();
+  const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: list.id,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
+
+  // Desktop: e.detail === 2 is the browser's own resolved double-click
+  // signal, arriving on the very click that matters — rename can fire (and
+  // cancel <Link>'s navigation) immediately, with nothing to preempt.
+  function handleDesktopTitleClick(e: React.MouseEvent) {
+    if (e.detail === 2) {
+      e.preventDefault();
+      onStartRename(list);
+    }
+  }
+  // Mobile has no equivalent signal: a touch double-tap's first tap can't
+  // tell whether a second one is coming. Firing navigation immediately on
+  // that first tap (the way <Link> normally would) meant a genuine
+  // double-tap briefly navigated the whole carousel over to this list's
+  // Tasks slide before the second tap reopened the rename+colour drawer —
+  // useSingleOrDoubleTap defers the single-tap navigation instead, so it
+  // only actually happens once the double-tap window has closed with no
+  // second tap.
+  const handleMobileTitleTap = useSingleOrDoubleTap<React.MouseEvent>(
+    () => router.push(`/tasks/${list.id}`),
+    () => onStartRename(list),
+  );
+  const handleDotDoubleTap = useDoubleTapHandler(() => onColorPickerToggle());
+
+  // Mobile-only swipe-to-delete. Tracks the gesture in a ref (not state) so
+  // dragging updates the DOM directly at 60fps instead of re-rendering on
+  // every pointermove; only the final open/closed outcome (on release)
+  // becomes real state (swipeOpen, lifted to ListSidebar), which then drives
+  // the declarative transform + CSS transition for the snap animation.
+  const rowInnerRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{
+    startX: number;
+    startY: number;
+    locked: 'horizontal' | 'vertical' | null;
+  } | null>(null);
+
+  function handleRowPointerDown(e: React.PointerEvent) {
+    if (!isMobile) return;
+    dragState.current = { startX: e.clientX, startY: e.clientY, locked: null };
+  }
+
+  function handleRowPointerMove(e: React.PointerEvent) {
+    const state = dragState.current;
+    if (!state) return;
+    const dx = e.clientX - state.startX;
+    const dy = e.clientY - state.startY;
+    if (!state.locked) {
+      // Wait for a clear, deliberate movement before committing to a
+      // direction — a few px of jitter on a tap shouldn't lock anything.
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      state.locked = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+    // Vertical drags fall through untouched — this is what lets the page's
+    // own vertical scroll keep working; only a horizontal drag is ours to
+    // handle (touch-action: pan-y on .rowInner tells the browser the same
+    // thing, so its native scroll doesn't fight this over a horizontal
+    // gesture, including the outer carousel's own horizontal swipe).
+    if (state.locked !== 'horizontal') return;
+    e.preventDefault();
+    const base = swipeOpen ? -SWIPE_REVEAL_WIDTH : 0;
+    const next = Math.min(0, Math.max(-SWIPE_REVEAL_WIDTH, base + dx));
+    if (rowInnerRef.current) rowInnerRef.current.style.transform = `translateX(${next}px)`;
+  }
+
+  function handleRowPointerUp(e: React.PointerEvent) {
+    const state = dragState.current;
+    dragState.current = null;
+    if (!state || state.locked !== 'horizontal') return;
+    const dx = e.clientX - state.startX;
+    const base = swipeOpen ? -SWIPE_REVEAL_WIDTH : 0;
+    const finalX = Math.min(0, Math.max(-SWIPE_REVEAL_WIDTH, base + dx));
+    // Clear the manually-driven inline style so the declarative style prop
+    // below (based on the swipeOpen state this sets) takes over — the CSS
+    // transition on .rowInner then animates from wherever this drag left off
+    // to the resolved open/closed position.
+    if (rowInnerRef.current) rowInnerRef.current.style.transform = '';
+    if (finalX < -SWIPE_REVEAL_WIDTH / 2) onSwipeOpen();
+    else onSwipeClose();
+  }
+
+  // While a row's delete action is revealed, any tap on its content (title,
+  // dot) closes it instead of performing that element's normal action —
+  // otherwise the very next tap needed to dismiss the reveal would instead
+  // navigate or open the colour picker.
+  function closeSwipeOrElse(e: { preventDefault: () => void }, action: () => void) {
+    if (swipeOpen) {
+      e.preventDefault();
+      onSwipeClose();
+      return;
+    }
+    action();
+  }
 
   // Desktop keeps the inline-edit-swap row exactly as before; on mobile,
   // renaming happens in its own Drawer (below) instead, so the row itself is
@@ -391,73 +566,11 @@ function ListItem({
     );
   }
 
-  // Mobile only — desktop's equivalent actions live in TasksPane's header
-  // menu instead (rename/colour are reached via double-click directly on
-  // this row; see below).
-  const menuContent = (
-    <div className={styles.menu}>
-      <div className={styles.swatches}>
-        {LIST_SWATCHES.map((s) => (
-          <Tooltip key={s.key} content={s.label} side="bottom">
-            <button
-              type="button"
-              className={[styles.swatch, list.color === s.key ? styles.swatchActive : '']
-                .filter(Boolean)
-                .join(' ')}
-              style={{ background: s.token }}
-              aria-label={`Set colour ${s.label}`}
-              onClick={() => onColor(list, s.key)}
-            />
-          </Tooltip>
-        ))}
-      </div>
-      <button type="button" className={styles.menuItem} onClick={() => onStartRename(list)}>
-        Rename
-      </button>
-      <button
-        type="button"
-        className={[styles.menuItem, styles.menuDanger].join(' ')}
-        onClick={() => onRequestDelete(list)}
-      >
-        Delete
-      </button>
-    </div>
-  );
-
-  // Desktop only — double-clicking the dot opens just the colour swatches,
-  // no rename/delete (those are reached via double-click-the-title and
-  // TasksPane's header menu respectively).
-  const colorPickerContent = (
-    <div className={[styles.swatches, styles.swatchesStandalone].join(' ')}>
-      {LIST_SWATCHES.map((s) => (
-        <Tooltip key={s.key} content={s.label} side="bottom">
-          <button
-            type="button"
-            className={[styles.swatch, list.color === s.key ? styles.swatchActive : '']
-              .filter(Boolean)
-              .join(' ')}
-            style={{ background: s.token }}
-            aria-label={`Set colour ${s.label}`}
-            onClick={() => {
-              onColor(list, s.key);
-              onColorPickerClose();
-            }}
-          />
-        </Tooltip>
-      ))}
-    </div>
-  );
-
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={[
-        styles.item,
-        active ? styles.active : '',
-        isDragging ? styles.dragging : '',
-        menuOpen ? styles.menuOpenRow : '',
-      ]
+      className={[styles.item, active ? styles.active : '', isDragging ? styles.dragging : '']
         .filter(Boolean)
         .join(' ')}
     >
@@ -470,9 +583,40 @@ function ListItem({
       >
         <GripIcon />
       </button>
-      <div className={styles.rowInner}>
+      {/* Mobile-only swipe-to-delete reveal, sitting behind .rowInner (see
+          its own z-index/position in the CSS) — .rowInner has an opaque,
+          inherited background so this stays hidden until dragged into view. */}
+      <div className={styles.swipeDeleteBg} aria-hidden={!swipeOpen}>
+        <button
+          type="button"
+          className={styles.swipeDeleteBtn}
+          aria-label={`Delete "${list.title}"`}
+          onClick={() => {
+            onSwipeClose();
+            onRequestDelete(list);
+          }}
+        >
+          Delete
+        </button>
+      </div>
+      <div
+        ref={rowInnerRef}
+        className={styles.rowInner}
+        style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
+        onPointerDown={handleRowPointerDown}
+        onPointerMove={handleRowPointerMove}
+        onPointerUp={handleRowPointerUp}
+        onPointerCancel={handleRowPointerUp}
+      >
         {isMobile ? (
-          <span className={styles.dot} style={{ background: listDotColor(list.color) }} aria-hidden />
+          // Mobile: the dot is a plain indicator, not its own interactive
+          // trigger — colour lives inside the combined rename+colour drawer
+          // reached via the title below, per the single-drawer redesign.
+          <span
+            className={styles.dot}
+            style={{ background: listDotColor(list.color) }}
+            aria-hidden
+          />
         ) : (
           <Popover
             open={colorPickerOpen}
@@ -480,10 +624,13 @@ function ListItem({
             // 'left' — Popover's .left aligns the panel's *left* edge to the
             // trigger's left edge, expanding rightward into the sidebar.
             // 'right' would align the panel's right edge to this ~8px-wide
-            // trigger sitting near the sidebar's left edge, pushing a 160px
+            // trigger sitting near the sidebar's left edge, pushing a 180px
             // panel almost entirely off-screen to the left.
             align="left"
-            width={160}
+            // 6 swatches (18px) + 5 gaps (--sv-space-2, 8px) + padding
+            // (--sv-space-3, 12px each side) = 172px — 180 leaves a touch of
+            // breathing room. See .swatches for the matching gap.
+            width={180}
             // Square corners for this compact swatch grid — the default
             // rounded panel chrome (packages/ui's Popover) reads oddly at
             // this size; every other Popover in this plugin keeps it.
@@ -495,104 +642,73 @@ function ListItem({
                 className={styles.dotButton}
                 style={{ background: listDotColor(list.color) }}
                 aria-label={`Change colour for "${list.title}"`}
-                onDoubleClick={onColorPickerToggle}
+                onClick={(e) => closeSwipeOrElse(e, () => handleDotDoubleTap(e))}
               />
             }
           >
-            {colorPickerContent}
+            <ColorSwatches list={list} onColor={onColor} onPicked={onColorPickerClose} />
           </Popover>
         )}
         <Link
           href={`/tasks/${list.id}`}
           className={styles.link}
           onClick={(e) => {
-            // e.detail === 2 is the second click of a double-click (native
-            // browser click-count tracking) — preventDefault here cancels
-            // Next's own Link navigation (it checks defaultPrevented after
-            // any caller-supplied onClick runs), so a double-click renames
-            // instead of navigating. Single clicks (detail === 1) pass
-            // through untouched. Desktop only — mobile renames via the
-            // dedicated Drawer sheet reached through the actions menu.
-            if (!isMobile && e.detail === 2) {
-              e.preventDefault();
-              onStartRename(list);
-            }
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            closeSwipeOrElse(e, () => {
+              if (isMobile) {
+                e.preventDefault();
+                handleMobileTitleTap(e);
+              } else {
+                handleDesktopTitleClick(e);
+              }
+            });
           }}
         >
           <span className={styles.listTitle}>{list.title}</span>
         </Link>
         <span className={styles.trail}>
           {list.openCount > 0 && <span className={styles.count}>{list.openCount}</span>}
-          {isMobile && (
-            <button
-              type="button"
-              className={styles.menuBtn}
-              aria-label={`Actions for "${list.title}"`}
-              onClick={onMenuToggle}
-            >
-              <Icon name="ellipsis-vertical" size="sm" aria-hidden />
-            </button>
-          )}
         </span>
       </div>
 
       {isMobile && (
-        <>
-          <Drawer
-            open={menuOpen}
-            onClose={onMenuClose}
-            aria-label={`Actions for "${list.title}"`}
-          >
-            {menuContent}
-          </Drawer>
-          <Drawer open={editing} onClose={() => onRenameCancel(list)} aria-label={`Rename "${list.title}"`}>
-            <div className={styles.renameSheet}>
-              <div className={styles.renameSheetHeader}>
-                <button type="button" className={styles.renameSheetCancel} onClick={() => onRenameCancel(list)}>
-                  Cancel
-                </button>
-                <span className={styles.renameSheetTitle}>Edit list</span>
-                <button
-                  type="button"
-                  className={styles.renameSheetSave}
-                  onClick={() => onRenameCommit(list)}
-                >
-                  Save
-                </button>
-              </div>
-              <label className={styles.renameSheetLabel} htmlFor={`rename-${list.id}`}>
-                List name
-              </label>
-              <input
-                id={`rename-${list.id}`}
-                ref={renameInputRef}
-                className={styles.renameSheetInput}
-                value={editTitle}
-                onChange={(e) => onEditTitleChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') onRenameCommit(list);
-                  if (e.key === 'Escape') onRenameCancel(list);
-                }}
-              />
-              <span className={styles.renameSheetLabel}>Colour</span>
-              <div className={styles.swatches}>
-                {LIST_SWATCHES.map((s) => (
-                  <Tooltip key={s.key} content={s.label} side="bottom">
-                    <button
-                      type="button"
-                      className={[styles.swatch, list.color === s.key ? styles.swatchActive : '']
-                        .filter(Boolean)
-                        .join(' ')}
-                      style={{ background: s.token }}
-                      aria-label={`Set colour ${s.label}`}
-                      onClick={() => onColor(list, s.key)}
-                    />
-                  </Tooltip>
-                ))}
-              </div>
+        <Drawer open={editing} onClose={() => onRenameCancel(list)} aria-label={`Edit "${list.title}"`}>
+          <div className={styles.renameSheet}>
+            <div className={styles.renameSheetHeader}>
+              <button
+                type="button"
+                className={styles.renameSheetCancel}
+                onClick={() => onRenameCancel(list)}
+              >
+                Cancel
+              </button>
+              <span className={styles.renameSheetTitle}>Edit list</span>
+              <button
+                type="button"
+                className={styles.renameSheetSave}
+                onClick={() => onRenameCommit(list)}
+              >
+                Save
+              </button>
             </div>
-          </Drawer>
-        </>
+            <label className={styles.renameSheetLabel} htmlFor={`rename-${list.id}`}>
+              List name
+            </label>
+            <input
+              id={`rename-${list.id}`}
+              ref={renameInputRef}
+              className={styles.renameSheetInput}
+              value={editTitle}
+              onChange={(e) => onEditTitleChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onRenameCommit(list);
+                if (e.key === 'Escape') onRenameCancel(list);
+              }}
+            />
+            <span className={styles.renameSheetLabel}>Colour</span>
+            <ColorSwatches list={list} onColor={onColor} showLabels />
+          </div>
+        </Drawer>
       )}
     </li>
   );

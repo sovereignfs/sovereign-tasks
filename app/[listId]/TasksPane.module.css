@@ -12,18 +12,25 @@
 }
 
 .header {
+  /* Single row on every breakpoint — title (truncates), count, then the
+     options menu trigger, always in that order and always on the title's
+     own line. Filter renders inline next to the menu trigger when a hidden
+     shadow-row measurement (see TasksPane.tsx) says there's room; otherwise
+     it folds into that same menu instead of its own separate visible
+     control, so the menu trigger never has to compete with — or get pushed
+     around by — anything else in the header regardless of title length.
+     Mobile hits the "doesn't fit" branch more often (narrower row), but the
+     mechanism is identical to desktop — no separate mobile-only markup. */
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sv-space-3);
+  flex-direction: column;
+  gap: var(--sv-space-2);
   padding: 0 var(--sv-space-5) var(--sv-space-3);
   border-bottom: 1px solid var(--sv-color-border);
-  flex-wrap: wrap;
 }
 
 .titleRow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--sv-space-2);
   min-width: 0;
 }
@@ -33,10 +40,17 @@
   height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
-  align-self: center;
 }
 
 .title {
+  /* No flex-grow — the title should sit right next to .count (like it did
+     before the header menu existed), not stretch to soak up all the row's
+     free space and shove .count over next to the menu button. min-width: 0
+     still lets it shrink (and its ellipsis kick in) on the rare title long
+     enough to actually need it; .spacer below is what absorbs normal
+     leftover space, pushing the menu button to the row's far edge. */
+  min-width: 0;
+  flex-shrink: 1;
   font-size: var(--sv-font-size-xl);
   font-weight: 600;
   margin: 0;
@@ -52,8 +66,13 @@
   font-weight: 600;
   color: var(--sv-color-text-primary);
   border-bottom: 1px solid var(--sv-color-accent);
-  min-width: 0;
-  flex: 1;
+  /* No flex-grow, same reasoning as .title — width is set inline (in ch
+     units, based on the current value's length) so switching into edit mode
+     keeps roughly the title's own footprint instead of snapping to fill the
+     whole row. max-width caps it at the row's actual available space so a
+     very long value doesn't overflow past .count/the menu button. */
+  min-width: 4ch;
+  max-width: 100%;
 }
 
 .count {
@@ -62,10 +81,12 @@
   flex-shrink: 0;
 }
 
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: var(--sv-space-2);
+/* Absorbs the row's leftover space so the menu button lands at the far
+   right edge without .title (which has no flex-grow — see above) having to
+   stretch there itself. */
+.spacer {
+  flex: 1;
+  min-width: 0;
 }
 
 .menuBtn {

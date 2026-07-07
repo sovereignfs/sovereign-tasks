@@ -49,6 +49,17 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didSyncInitialUrl = useRef(false);
   const isFirstRefreshSignal = useRef(true);
+  // Set right before the scroll-settle handler below calls router.replace, so
+  // the pathname-sync effect can tell "this pathname change is the carousel's
+  // own settle, already reflected in activeIndex" apart from a genuinely
+  // external navigation (a tapped <Link>, browser back/forward, a bookmark).
+  // Needed specifically because indexForPathname can't distinguish those two
+  // cases for a bare `/tasks` pathname: settling on slide 0 (Lists index)
+  // produces the same pathname as a fresh cold load, whose fallback prefers
+  // the first list (index 1) — without this flag, settling on slide 0 was
+  // immediately overridden back to index 1 once the router's pathname state
+  // caught up a render or two later.
+  const isInternalNav = useRef(false);
 
   const [activeIndex, setActiveIndex] = useState(() => indexForPathname(pathname, lists));
   const initialIndexRef = useRef(activeIndex);
@@ -64,14 +75,27 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
   const taskIdParam = searchParams.get('task');
 
   const loadList = useCallback(async (listId: string) => {
-    setListState((s) => ({
-      ...s,
-      [listId]: {
-        tasks: s[listId]?.tasks ?? [],
-        showCompleted: s[listId]?.showCompleted ?? false,
-        status: 'loading',
-      },
-    }));
+    setListState((s) => {
+      const existing = s[listId];
+      // A background refresh (e.g. router.refresh() after toggling a
+      // checkbox re-fires this for the active slide via the refreshSignal
+      // effect below) should keep showing the already-loaded tasks while
+      // the refetch happens, not flip back to the "Loading…" placeholder —
+      // that unmounts and remounts TasksPane, which was the source of a
+      // visible flicker on every mutation, and (combined with the cold-load
+      // effect's router.replace also re-firing this for the same list right
+      // after the initial mount fetch) a double flicker on first open.
+      // 'loading' is reserved for a list's genuine first-ever fetch.
+      const status = existing?.status === 'loaded' ? 'loaded' : 'loading';
+      return {
+        ...s,
+        [listId]: {
+          tasks: existing?.tasks ?? [],
+          showCompleted: existing?.showCompleted ?? false,
+          status,
+        },
+      };
+    });
     try {
       const [tasks, prefs] = await Promise.all([getTasks(listId), getOrCreatePrefs(listId)]);
       setListState((s) => ({
@@ -134,13 +158,26 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
   // Sync to the pathname whenever it changes for a reason other than the
   // carousel's own scroll-settle handler below — e.g. tapping a list row's
   // <Link> on the Lists index slide (ListSidebar), which navigates but never
-  // touches scrollLeft itself. Guarded to a no-op when the index already
-  // matches (including the scroll-settle handler's own router.replace, which
-  // by definition changes the URL to match the activeIndex it just set).
+  // touches scrollLeft itself.
+  //
+  // Can't rely solely on comparing newIndex to activeIndexRef here: settling
+  // on slide 0 (the Lists index) also replaces the URL to the bare `/tasks`
+  // pathname, which indexForPathname can't tell apart from a fresh cold
+  // load — its fallback for that exact pathname prefers the first list
+  // (index 1), not index 0. Once Next's router state caught up with that
+  // replace a render later, this effect saw pathname go from `/tasks/x` to
+  // `/tasks`, recomputed newIndex as 1 via the fallback, and smooth-scrolled
+  // straight back to the first list a moment after the user had swiped away
+  // from it. isInternalNav (set right before that specific router.replace)
+  // marks the change as already accounted for and skips this resync once.
   const didMountPathSync = useRef(false);
   useEffect(() => {
     if (!didMountPathSync.current) {
       didMountPathSync.current = true;
+      return;
+    }
+    if (isInternalNav.current) {
+      isInternalNav.current = false;
       return;
     }
     const newIndex = indexForPathname(pathname, lists);
@@ -178,6 +215,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         if (newIndex === activeIndexRef.current) return;
         setActiveIndex(newIndex);
         const newList = newIndex > 0 ? lists[newIndex - 1] : null;
+        isInternalNav.current = true;
         router.replace(newList ? `/tasks/${newList.id}` : '/tasks', { scroll: false });
       }, 120);
     }
@@ -223,7 +261,27 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
 
   // Guard against a stale ?task from a different list, same as page.tsx does.
   const validDetailTask = detailTask && detailTask.listId === activeList?.id ? detailTask : null;
-  const showDrawer = !!taskIdParam && (detailLoading || validDetailTask !== null);
+
+  // While getTask() above is in flight, the tapped task's summary fields are
+  // already sitting in this same list's cached tasks (whatever TaskItem the
+  // user just tapped rendered from) — everything DetailTask needs except
+  // seriesId, which useEditScope only reads at the moment of a later commit
+  // (not captured once at mount), so a temporary null there is harmless.
+  // Rendering this immediately instead of a bare "Loading…" placeholder is
+  // what removes the layout jump right after the drawer opens — the content
+  // is full-sized from the first frame, and swapping in the authoritative
+  // fetch afterwards is an invisible, same-shape update, not a remount
+  // (TaskDetailPane's inner DetailBody is keyed by task.id, which doesn't
+  // change between the optimistic and authoritative versions).
+  const optimisticDetailTask: DetailTask | null =
+    !validDetailTask && taskIdParam && activeList
+      ? (() => {
+          const t = listState[activeList.id]?.tasks.find((task) => task.id === taskIdParam);
+          return t ? { ...t, seriesId: null } : null;
+        })()
+      : null;
+  const displayDetailTask = validDetailTask ?? optimisticDetailTask;
+  const showDrawer = !!taskIdParam && (detailLoading || displayDetailTask !== null);
 
   return (
     <div className={styles.wrap}>
@@ -242,7 +300,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
                   initialTasks={state.tasks}
                   showCompleted={state.showCompleted}
                   listId={list.id}
-                  selectedTaskId={validDetailTask?.id ?? null}
+                  selectedTaskId={displayDetailTask?.id ?? null}
                 />
               ) : (
                 <div className={styles.slideLoading}>Loading…</div>
@@ -264,8 +322,8 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
       )}
 
       <Drawer open={showDrawer} onClose={closeDetail} aria-label="Task details">
-        {validDetailTask && activeList ? (
-          <TaskDetailPane task={validDetailTask} listId={activeList.id} lists={lists} />
+        {displayDetailTask && activeList ? (
+          <TaskDetailPane task={displayDetailTask} listId={activeList.id} lists={lists} />
         ) : (
           <div className={styles.slideLoading}>Loading…</div>
         )}
