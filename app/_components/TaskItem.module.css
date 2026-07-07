@@ -191,30 +191,25 @@
   color: var(--sv-color-text-primary);
   word-break: break-word;
   line-height: 1.5;
-  position: relative;
   width: fit-content;
   max-width: 100%;
-}
-
-.title::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 100%;
-  height: 1px;
-  background: var(--sv-color-text-subtle);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.2s ease;
+  /* Strike-through is native text-decoration, not a single ::after line —
+     a title that wraps to multiple lines has no single "middle" to draw one
+     line through; a ::after positioned at top: 50% of the whole (multi-line)
+     box instead landed between the two lines, reading as an underline under
+     the first one rather than a strike through either. text-decoration-line
+     is drawn by the browser per line, so it's correct regardless of how many
+     lines the title wraps to. Starts transparent and fades in via
+     text-decoration-color (not scaleX growth, which the same wrapped-line
+     problem rules out) so completing a task still animates. */
+  text-decoration-line: line-through;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s ease;
 }
 
 .complete {
   color: var(--sv-color-text-subtle);
-}
-
-.complete::after {
-  transform: scaleX(1);
+  text-decoration-color: var(--sv-color-text-subtle);
 }
 
 .note {
