@@ -250,33 +250,40 @@ export default function TaskItem({
           <GripIcon />
         </button>
       )}
-      {/* Mobile-only swipe-to-reveal, sitting behind .row (see its own
-          z-index/position in the CSS) — .row has an opaque, inherited
-          background so this stays hidden until dragged into view. */}
-      <div className={styles.swipeActionsBg} aria-hidden={!swipeOpen}>
-        <button
-          type="button"
-          className={styles.swipeDoneBtn}
-          aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
-          onClick={handleSwipeComplete}
+      {/* Positioned anchor scoped to just the row's own height — not
+          .wrapper's, which also contains the expandable SubtaskList below.
+          .swipeActionsBg is inset:0 against its nearest positioned ancestor;
+          anchoring it here (rather than .wrapper) keeps it from stretching
+          down behind the subtask list once expanded, which used to leave the
+          Done/Delete panel visible underneath it. */}
+      <div className={styles.rowContainer}>
+        {/* Mobile-only swipe-to-reveal, sitting behind .row (see its own
+            z-index/position in the CSS) — .row has an opaque, inherited
+            background so this stays hidden until dragged into view. */}
+        <div className={styles.swipeActionsBg} aria-hidden={!swipeOpen}>
+          <button
+            type="button"
+            className={styles.swipeDoneBtn}
+            aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
+            onClick={handleSwipeComplete}
+          >
+            {isComplete ? 'Undo' : 'Done'}
+          </button>
+          <button
+            type="button"
+            className={styles.swipeDeleteBtn}
+            aria-label={`Delete "${task.title}"`}
+            onClick={handleSwipeDelete}
+          >
+            Delete
+          </button>
+        </div>
+        <div
+          ref={rowRef}
+          className={styles.row}
+          style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
+          onClickCapture={handleRowClickCapture}
         >
-          {isComplete ? 'Undo' : 'Done'}
-        </button>
-        <button
-          type="button"
-          className={styles.swipeDeleteBtn}
-          aria-label={`Delete "${task.title}"`}
-          onClick={handleSwipeDelete}
-        >
-          Delete
-        </button>
-      </div>
-      <div
-        ref={rowRef}
-        className={styles.row}
-        style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
-        onClickCapture={handleRowClickCapture}
-      >
         <Checkbox
           checked={isComplete}
           onChange={handleToggle}
@@ -361,6 +368,7 @@ export default function TaskItem({
             onPointerCancel={handleRowPointerUp}
           />
         )}
+        </div>
       </div>
 
       {expanded && (

@@ -84,9 +84,10 @@
   padding: var(--sv-space-3) var(--sv-space-5);
   min-height: 44px;
   /* Mobile swipe-to-reveal: this is the sliding foreground layer, positioned
-     above .swipeActionsBg (z-index) with an opaque background (inherited from
-     .wrapper, whatever its current state) so Done/Delete stay hidden until
-     dragged into view. touch-action is left at its default (auto) here —
+     above .swipeActionsBg (z-index) with an opaque background (inherited via
+     .rowContainer from .wrapper, whatever its current state) so Done/Delete
+     stay hidden until dragged into view. touch-action is left at its default
+     (auto) here —
      deliberately, so a horizontal touch drag starting anywhere on the row is
      free to become the mobile carousel's native swipe-between-lists gesture.
      Only .swipeEdgeZone below restricts touch-action, so the reveal can only
@@ -95,6 +96,20 @@
   z-index: 1;
   background-color: inherit;
   transition: transform 0.2s ease;
+}
+
+/* Positioned anchor for .swipeActionsBg, scoped to just the row's own height
+   — not .wrapper's, which also contains the expandable SubtaskList as a
+   later sibling. .swipeActionsBg's inset: 0 resolves against this element's
+   box (its nearest positioned ancestor), which is sized by .row alone (the
+   only normal-flow child); anchoring against .wrapper instead let the
+   actions panel stretch down behind the subtask list once expanded, since
+   .row's own opaque background only ever covered its own height, not the
+   full (now taller) wrapper. background-color: inherit continues the same
+   chain .row already relies on, one level down from .wrapper. */
+.rowContainer {
+  position: relative;
+  background-color: inherit;
 }
 
 /* Mobile swipe-to-reveal's actions, behind .row. Sized/positioned so only
