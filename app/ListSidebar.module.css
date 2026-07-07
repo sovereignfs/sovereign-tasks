@@ -91,9 +91,12 @@
      below). background-color is explicit (not the default transparent) so
      .rowInner's own `background-color: inherit` always resolves to whatever
      this row's current background actually is (default/hover/active),
-     without needing its own separate state. */
+     without needing its own separate state. Default matches the sidebar
+     flank's own background (--tasks-sidebar-bg, set on .sidebar in
+     layout.module.css) rather than --sv-color-surface, so rows blend into
+     the flank instead of reading as a separate white block. */
   position: relative;
-  background-color: var(--sv-color-surface);
+  background-color: var(--tasks-sidebar-bg, var(--sv-color-surface-sunken));
   transition: background-color 0.1s ease;
 }
 
@@ -158,18 +161,39 @@
   /* Mobile swipe-to-delete: this is the sliding foreground layer, positioned
      above .swipeDeleteBg (z-index) with an opaque background (inherited from
      .item, whatever its current state) so the delete action stays hidden
-     until dragged into view. touch-action: pan-y tells the browser to leave
-     horizontal touch drags on this element to our own JS (ListSidebar.tsx's
-     pointer handlers) instead of treating them as a native scroll gesture —
-     otherwise the outer carousel's own horizontal swipe-between-slides would
-     compete with dragging this row. The transition animates the snap to
-     open/closed on release; mid-drag, the handlers set transform directly on
-     the DOM node instead, bypassing this transition for immediate feedback. */
+     until dragged into view. touch-action is left at its default (auto) here
+     — deliberately, so a horizontal touch drag starting anywhere on the row
+     is free to become the carousel's native swipe-between-slides gesture
+     (MobileTasksCarousel's .scroller). Only .swipeEdgeZone below restricts
+     touch-action, so the delete gesture can only ever be *started* from a
+     narrow strip at the row's right edge. The transition animates the snap
+     to open/closed on release; mid-drag, the handlers set transform directly
+     on the DOM node instead, bypassing this transition for immediate feedback. */
   position: relative;
   z-index: 1;
   background-color: inherit;
-  touch-action: pan-y;
   transition: transform 0.2s ease;
+}
+
+/* Mobile-only hotspot pinned to the row's right edge — the only place a
+   swipe-to-delete drag can begin. touch-action: pan-y tells the browser to
+   leave horizontal touch drags starting *here* to our own JS (ListSidebar.tsx's
+   pointer handlers) instead of treating them as a native scroll gesture, while
+   still allowing vertical page scroll to pass through. Starting the drag
+   anywhere else on the row (the common case) hits .rowInner's default
+   touch-action instead, so it becomes the carousel's native horizontal swipe
+   uninterrupted. Width matches --sv-space-8 — narrow enough to stay clear of
+   the row's real interactive content (the list Link, colour dot/trigger) but
+   still a reasonable touch target. Transparent and non-visual; only present to
+   claim this region's touch-action and host the pointer handlers. */
+.swipeEdgeZone {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--sv-space-8);
+  z-index: 2;
+  touch-action: pan-y;
 }
 
 /* Mobile swipe-to-delete's revealed action, behind .rowInner. Sized/positioned

@@ -80,6 +80,16 @@ export default function SubtaskList({
   const doneCount = subtasks.filter((s) => s.completedAt !== null).length;
 
   async function handleToggle(id: string, checked: boolean) {
+    // Same complaint as the main task checkbox: waiting on toggleComplete +
+    // reload before flipping the box reads as an unresponsive/missed tap on
+    // mobile. subtasks is plain local state (not derived from a prop), so a
+    // direct optimistic patch is enough — load() below overwrites it with
+    // the authoritative row once the round trip actually completes.
+    setSubtasks((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, completedAt: checked ? Math.floor(Date.now() / 1000) : null } : s,
+      ),
+    );
     await toggleComplete(id, listId, checked);
     await load();
     onMutated();

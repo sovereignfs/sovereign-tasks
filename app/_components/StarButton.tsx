@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useOptimistic, useTransition } from 'react';
 import { toggleFavorite } from '../_lib/actions';
 import styles from './StarButton.module.css';
 
@@ -16,14 +16,23 @@ interface Props {
 
 export default function StarButton({ taskId, listId, favorite, onMutated, className }: Props) {
   const router = useRouter();
+  // Same optimistic pattern as TaskItem's checkbox — flip the star instantly
+  // instead of waiting on the toggleFavorite round trip (+ whatever refresh
+  // onMutated triggers) before showing anything.
+  const [optimisticFavorite, setOptimisticFavorite] = useOptimistic(
+    favorite,
+    (_prev: boolean, next: boolean) => next,
+  );
   const [, startTransition] = useTransition();
 
   function toggle(e: React.MouseEvent) {
     // Rows are clickable (open detail) — don't let the star bubble to them.
     e.preventDefault();
     e.stopPropagation();
+    const next = !optimisticFavorite;
     startTransition(async () => {
-      await toggleFavorite(taskId, listId, !favorite);
+      setOptimisticFavorite(next);
+      await toggleFavorite(taskId, listId, next);
       if (onMutated) onMutated();
       else router.refresh();
     });
@@ -32,14 +41,14 @@ export default function StarButton({ taskId, listId, favorite, onMutated, classN
   return (
     <button
       type="button"
-      className={[styles.star, favorite ? styles.on : '', className ?? '']
+      className={[styles.star, optimisticFavorite ? styles.on : '', className ?? '']
         .filter(Boolean)
         .join(' ')}
-      aria-pressed={favorite}
-      aria-label={favorite ? 'Unstar task' : 'Star task'}
+      aria-pressed={optimisticFavorite}
+      aria-label={optimisticFavorite ? 'Unstar task' : 'Star task'}
       onClick={toggle}
     >
-      {favorite ? '★' : '☆'}
+      {optimisticFavorite ? '★' : '☆'}
     </button>
   );
 }

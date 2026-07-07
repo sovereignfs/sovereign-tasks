@@ -487,6 +487,11 @@ function ListItem({
 
   function handleRowPointerDown(e: React.PointerEvent) {
     if (!isMobile) return;
+    // Pointer capture keeps move/up events targeting this element even once
+    // the drag has moved well outside its narrow bounds (the whole point of
+    // starting from a thin edge strip) — without it, later pointermove events
+    // go to whatever the finger is now physically over instead of here.
+    e.currentTarget.setPointerCapture(e.pointerId);
     dragState.current = { startX: e.clientX, startY: e.clientY, locked: null };
   }
 
@@ -603,10 +608,6 @@ function ListItem({
         ref={rowInnerRef}
         className={styles.rowInner}
         style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
-        onPointerDown={handleRowPointerDown}
-        onPointerMove={handleRowPointerMove}
-        onPointerUp={handleRowPointerUp}
-        onPointerCancel={handleRowPointerUp}
       >
         {isMobile ? (
           // Mobile: the dot is a plain indicator, not its own interactive
@@ -669,6 +670,19 @@ function ListItem({
         <span className={styles.trail}>
           {list.openCount > 0 && <span className={styles.count}>{list.openCount}</span>}
         </span>
+        {isMobile && (
+          // The only region a swipe-to-delete drag can start from — see
+          // .swipeEdgeZone in ListSidebar.module.css for why this is a
+          // separate element rather than handlers on the whole row.
+          <div
+            className={styles.swipeEdgeZone}
+            aria-hidden
+            onPointerDown={handleRowPointerDown}
+            onPointerMove={handleRowPointerMove}
+            onPointerUp={handleRowPointerUp}
+            onPointerCancel={handleRowPointerUp}
+          />
+        )}
       </div>
 
       {isMobile && (
