@@ -14,6 +14,15 @@ export interface MobileFullPageOverlayProps {
   onClose: () => void;
   /** Accessible name for the panel (sets `aria-label`). */
   'aria-label'?: string;
+  /**
+   * Which edge the panel slides in from. Defaults to `'bottom'` (task
+   * detail, list rename/colour/delete — content the user is reaching down
+   * into). `'top'` suits a short options/actions menu opened from a header
+   * button near the top of the screen, where sliding up from the bottom
+   * would travel past empty space before reaching content that visually
+   * belongs near the trigger.
+   */
+  slideFrom?: 'bottom' | 'top';
   children: ReactNode;
 }
 
@@ -37,6 +46,7 @@ export default function MobileFullPageOverlay({
   open,
   onClose,
   'aria-label': ariaLabel,
+  slideFrom = 'bottom',
   children,
 }: MobileFullPageOverlayProps) {
   const [phase, setPhase] = useState<Phase>(open ? 'open' : 'closed');
@@ -109,7 +119,13 @@ export default function MobileFullPageOverlay({
       aria-modal="true"
       aria-label={ariaLabel}
       tabIndex={-1}
-      className={[styles.panel, phase === 'open' ? styles.panelOpen : ''].filter(Boolean).join(' ')}
+      className={[
+        styles.panel,
+        slideFrom === 'top' ? styles.panelFromTop : '',
+        phase === 'open' ? styles.panelOpen : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
     </div>
