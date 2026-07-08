@@ -198,16 +198,27 @@
 
 /* Mobile swipe-to-delete's revealed action, behind .rowInner. Sized/positioned
    so only its right edge (width matching ListSidebar.tsx's
-   SWIPE_REVEAL_WIDTH constant) is ever exposed, however far .rowInner slides. */
+   SWIPE_REVEAL_WIDTH constant) is ever exposed, however far .rowInner slides.
+   top/bottom inset 3px (not flush 0) — see TaskItem.module.css's
+   .swipeActionsBg comment for why: a sub-device-pixel seam between this
+   layer and .rowInner's opaque cover, invisible with the old pale
+   error-surface fill, became a visible hairline with the vivid solid-token
+   fill (see .swipeDeleteBtn below). */
 .swipeDeleteBg {
   position: absolute;
-  inset: 0;
+  top: 3px;
+  right: 0;
+  bottom: 3px;
+  left: 0;
   z-index: 0;
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
 }
 
+/* Solid fill (not the pale error-surface token used elsewhere), matching
+   TaskItem's own swipeDeleteBtn — see that component's CSS comment for why a
+   swipe-revealed action gets a filled-button treatment. */
 .swipeDeleteBtn {
   all: unset;
   width: 72px;
@@ -215,10 +226,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--sv-color-error-surface);
-  color: var(--sv-color-error-text);
-  font-size: var(--sv-font-size-sm);
-  font-weight: 600;
+  background: var(--sv-color-error-solid);
+  color: var(--sv-color-text-on-error);
   cursor: pointer;
 }
 

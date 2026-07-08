@@ -267,7 +267,7 @@ export default function TaskItem({
             aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
             onClick={handleSwipeComplete}
           >
-            {isComplete ? 'Undo' : 'Done'}
+            <Icon name={isComplete ? 'rotate-ccw' : 'check'} size="md" aria-hidden />
           </button>
           <button
             type="button"
@@ -275,7 +275,7 @@ export default function TaskItem({
             aria-label={`Delete "${task.title}"`}
             onClick={handleSwipeDelete}
           >
-            Delete
+            <Icon name="trash-2" size="md" aria-hidden />
           </button>
         </div>
         <div
