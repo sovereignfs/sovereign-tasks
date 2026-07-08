@@ -1,3 +1,4 @@
+import { isDueTodayOrOverdue } from './date';
 import type { TaskRow } from './types';
 
 /**
@@ -38,4 +39,29 @@ export function sortTasks(tasks: TaskRow[], sortBy: SortBy): TaskRow[] {
       break;
   }
   return sorted;
+}
+
+/**
+ * Stable partition: overdue-or-due-today tasks float to the top, everything
+ * else follows — each group keeping whatever relative order it already had
+ * (manual drag order, or the result of sortTasks above). Applied after
+ * sortTasks, unconditionally of sortBy/filter, so it's "always on" per its
+ * own design rather than a separate mode to pick.
+ *
+ * Drag-reorder note: TasksPane's dragDisabled stays tied to sortBy==='manual'
+ * only, not to this partition. A drag that stays within one group (two
+ * pinned tasks, or two unpinned ones) reorders correctly. A drag that
+ * crosses the pinned/unpinned boundary still writes a valid manual order,
+ * but since pin membership is date-driven (not a manual property), the
+ * dragged task's on-screen position can snap back to its own group on the
+ * next render — the same intentional "sort wins over a crossing drag"
+ * behavior TasksPane already accepts for the date/dueDate/title sorts.
+ */
+export function pinDueTodayAndOverdue(tasks: TaskRow[]): TaskRow[] {
+  const due: TaskRow[] = [];
+  const rest: TaskRow[] = [];
+  for (const t of tasks) {
+    (isDueTodayOrOverdue(t.dueDate, t.completedAt) ? due : rest).push(t);
+  }
+  return due.length === 0 ? tasks : [...due, ...rest];
 }
