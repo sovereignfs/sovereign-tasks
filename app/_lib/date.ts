@@ -34,6 +34,16 @@ export function isOverdue(dueDate: string | null, completedAt: number | null): b
   return dueDate < todayISO();
 }
 
+/** Overdue OR due today (local calendar date), excluding completed tasks —
+ *  the "needs attention now" set used to pin tasks to the top of the list
+ *  regardless of the active sort/filter. Deliberately a superset of
+ *  isOverdue (which excludes today) since the Overdue *filter* and this
+ *  pinning rule answer different questions. */
+export function isDueTodayOrOverdue(dueDate: string | null, completedAt: number | null): boolean {
+  if (!dueDate || completedAt !== null) return false;
+  return dueDate <= todayISO();
+}
+
 /** Parse a stored 'YYYY-MM-DD' into a local Date (avoids UTC-parse day drift). */
 export function parseLocal(dueDate: string): Date {
   const [y, m, d] = dueDate.split('-').map(Number);

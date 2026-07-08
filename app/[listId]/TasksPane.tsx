@@ -19,6 +19,7 @@ import { Button, Icon, Popover, SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import BulkActionBar from '../_components/BulkActionBar';
+import MobileFullPageOverlay from '../_components/MobileFullPageOverlay';
 import TaskItem from '../_components/TaskItem';
 import {
   bulkDeleteTasks,
@@ -33,7 +34,7 @@ import {
 import { isOverdue } from '../_lib/date';
 import { listDotColor } from '../_lib/colors';
 import { measureTextWidth } from '../_lib/measureText';
-import { SORT_OPTIONS, sortTasks, type SortBy } from '../_lib/sort';
+import { SORT_OPTIONS, pinDueTodayAndOverdue, sortTasks, type SortBy } from '../_lib/sort';
 import { useIsMobile } from '../_lib/useIsMobile';
 import type { ListRow, TaskRow } from '../_lib/types';
 import styles from './TasksPane.module.css';
@@ -186,7 +187,12 @@ export default function TasksPane({
   // list, in place, instead of splitting completed ones off into the
   // separate collapsible section below. Marking a task done while viewing
   // "All" should leave it exactly where it is, not move it anywhere.
-  const activeVisible = sortTasks(filter === 'all' ? tasks : activeFiltered, sortBy);
+  // pinDueTodayAndOverdue always runs last, on top of whatever sortBy already
+  // did — "needs attention now" floats to the top regardless of sort mode or
+  // filter, per its own doc comment.
+  const activeVisible = pinDueTodayAndOverdue(
+    sortTasks(filter === 'all' ? tasks : activeFiltered, sortBy),
+  );
   const completed = sortTasks(
     tasks.filter((t) => t.completedAt !== null),
     sortBy,
@@ -437,6 +443,76 @@ export default function TasksPane({
     });
   }
 
+  // Shared between the desktop Popover and the mobile MobileFullPageOverlay
+  // sheet below — same options, same handlers, just a different container.
+  // .menuItemMobile bumps each row to the ~44px touch-target minimum; the
+  // Popover's own compact rows are fine with a mouse but too small to
+  // reliably tap.
+  const menuItemClass = (active: boolean) =>
+    [styles.menuItem, isMobile ? styles.menuItemMobile : '', active ? styles.menuItemActive : '']
+      .filter(Boolean)
+      .join(' ');
+  const menuItems = (
+    <>
+      {!filterFitsInline && (
+        <>
+          <span className={styles.menuLabel}>Filter</span>
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              className={menuItemClass(filter === f.value)}
+              onClick={() => {
+                setFilter(f.value);
+                setMenuOpen(false);
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+          <div className={styles.menuDivider} />
+        </>
+      )}
+      <span className={styles.menuLabel}>Sort by</span>
+      {SORT_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          className={menuItemClass(sortBy === opt.value)}
+          onClick={() => {
+            setSortBy(opt.value);
+            setMenuOpen(false);
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+      <div className={styles.menuDivider} />
+      {completed.length > 0 && (
+        <button
+          type="button"
+          className={[menuItemClass(false), styles.menuDanger].join(' ')}
+          onClick={() => {
+            setMenuOpen(false);
+            setDeleteCompletedOpen(true);
+          }}
+        >
+          Delete completed tasks
+        </button>
+      )}
+      <button
+        type="button"
+        className={[menuItemClass(false), styles.menuDanger].join(' ')}
+        onClick={() => {
+          setMenuOpen(false);
+          setDeleteOpen(true);
+        }}
+      >
+        Delete list
+      </button>
+    </>
+  );
+
   return (
     <div className={styles.pane} suppressHydrationWarning>
       <header className={styles.header}>
@@ -498,7 +574,17 @@ export default function TasksPane({
               aria-label="Filter tasks"
             />
           )}
-          <Popover
+          {isMobile ? (
+            <button
+              type="button"
+              className={styles.menuBtn}
+              aria-label={`Options for "${list.title}"`}
+              onClick={() => setMenuOpen(true)}
+            >
+              <Icon name="ellipsis-vertical" size="sm" aria-hidden />
+            </button>
+          ) : (
+            <Popover
               open={menuOpen}
               onClose={() => setMenuOpen(false)}
               align="right"
@@ -515,75 +601,9 @@ export default function TasksPane({
                 </button>
               }
             >
-              <div className={styles.menu}>
-                {!filterFitsInline && (
-                  <>
-                    <span className={styles.menuLabel}>Filter</span>
-                    {FILTERS.map((f) => (
-                      <button
-                        key={f.value}
-                        type="button"
-                        className={[
-                          styles.menuItem,
-                          filter === f.value ? styles.menuItemActive : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        onClick={() => {
-                          setFilter(f.value);
-                          setMenuOpen(false);
-                        }}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                    <div className={styles.menuDivider} />
-                  </>
-                )}
-                <span className={styles.menuLabel}>Sort by</span>
-                {SORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={[
-                      styles.menuItem,
-                      sortBy === opt.value ? styles.menuItemActive : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => {
-                      setSortBy(opt.value);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-                <div className={styles.menuDivider} />
-                {completed.length > 0 && (
-                  <button
-                    type="button"
-                    className={[styles.menuItem, styles.menuDanger].join(' ')}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setDeleteCompletedOpen(true);
-                    }}
-                  >
-                    Delete completed tasks
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={[styles.menuItem, styles.menuDanger].join(' ')}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setDeleteOpen(true);
-                  }}
-                >
-                  Delete list
-                </button>
-              </div>
-          </Popover>
+              <div className={styles.menu}>{menuItems}</div>
+            </Popover>
+          )}
         </div>
         {/* Hidden measurement-only clone of the fully-inline row (dot + title
             + count + spacer + Filter + menu button), used to decide
@@ -679,6 +699,30 @@ export default function TasksPane({
           </div>
         </div>
       </dialog>
+
+      {isMobile && (
+        <MobileFullPageOverlay
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          aria-label={`Options for "${list.title}"`}
+          slideFrom="top"
+        >
+          <div className={styles.menuSheet}>
+            <div className={styles.menuSheetHeader}>
+              <span className={styles.menuSheetTitle}>List options</span>
+              <button
+                type="button"
+                className={styles.menuSheetClose}
+                aria-label="Close"
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon name="x" size="sm" aria-hidden />
+              </button>
+            </div>
+            <div className={styles.menu}>{menuItems}</div>
+          </div>
+        </MobileFullPageOverlay>
+      )}
 
       <div className={styles.addRow}>
         <span className={styles.addPlus} aria-hidden>
