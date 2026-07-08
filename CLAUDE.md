@@ -215,11 +215,18 @@ server-rendered output) at all.
   `scrollend` event — iOS Safari/WKWebView only gained `scrollend` in 17.4,
   and older versions are still a live concern per this plugin's iOS PWA
   history.
-- **Task detail is a `Drawer`** (`@sovereignfs/ui`, the same bottom-sheet
-  component `MobileNav`'s Apps drawer already uses) wrapping the unmodified
-  `TaskDetailPane`, opened/closed by the same `?task=` param convention as
-  desktop. Swiping to a different list slide closes it, since a task's detail
-  only makes sense tied to the slide it came from.
+- **Task detail is a `MobileFullPageOverlay`** (`app/_components/MobileFullPageOverlay.tsx`
+  — a full-page slide-up panel, not `@sovereignfs/ui`'s `Drawer`; a task's
+  notes/due-date/repeat/subtasks form needs more room than a partial-height
+  sheet) wrapping the unmodified `TaskDetailPane`, opened/closed by the same
+  `?task=` param convention as desktop. Unlike `Drawer`, there's no scrim and
+  no built-in close control — `TaskDetailPane` supplies its own close button,
+  which must call `router.replace(closeHref, { scroll: false })` directly
+  (not a `next/link` `<Link replace>`, which silently no-ops when only the
+  search param changes on an already-mounted client route — this is what
+  broke the mobile close button before it was fixed to call `router.replace`
+  imperatively). Swiping to a different list slide also closes it, since a
+  task's detail only makes sense tied to the slide it came from.
 - **List management** (`ListSidebar.tsx`'s `ListItem`): mobile keeps a single
   combined `⋯` actions `Drawer` (rename, colour, delete together) — the
   desktop split (double-click title/dot + a separate col-2 header menu, see

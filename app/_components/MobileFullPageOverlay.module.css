@@ -27,3 +27,14 @@
 .panelOpen {
   transform: translateY(0);
 }
+
+/* Opt-in top variant (slideFrom="top") — a short options/actions menu
+   opened from a header button reads more naturally sliding down from that
+   button's edge than traveling up from off-screen bottom. :not(.panelOpen)
+   is what lets this coexist with .panelOpen above despite equal-looking
+   single-class specificity elsewhere in this file: its (0,2,0) beats
+   .panelOpen's (0,1,0) while closed/entering/closing, and yields to it
+   (transform: translateY(0), same value either direction) once open. */
+.panelFromTop:not(.panelOpen) {
+  transform: translateY(-100%);
+}

@@ -95,21 +95,37 @@
 }
 
 .close {
+  all: unset;
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 24px;
   height: 24px;
   border-radius: var(--sv-radius-sm);
   font-size: 12px;
-  text-decoration: none;
   color: var(--sv-color-text-subtle);
   flex-shrink: 0;
+  cursor: pointer;
   /* Same 24px-box-vs-18px-checkbox mismatch as .star (see StarButton.module.css)
      — both boxes start flush at .top's shared y=0, but this one is 6px
      taller, so its centered glyph sits 3px lower than the checkbox's. Nudge
      up by half that difference. */
   margin-top: -3px;
+}
+
+/* Expands the tappable area to the ~44px touch-target minimum without
+   growing the visible 24px glyph box — an invisible centered overlay rather
+   than padding, so .top's flex layout/spacing against the title and star
+   stays exactly as measured above. */
+.close::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .close:hover {

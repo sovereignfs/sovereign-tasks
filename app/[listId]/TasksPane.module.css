@@ -133,6 +133,14 @@
   background: var(--sv-color-surface-sunken);
 }
 
+/* Bumps each row to the ~44px touch-target minimum inside the mobile
+   MobileFullPageOverlay sheet below — the desktop Popover's compact rows
+   (above) are fine with a mouse but too small to reliably tap. */
+.menuItemMobile {
+  padding: var(--sv-space-3) var(--sv-space-2);
+  font-size: var(--sv-font-size-md);
+}
+
 .menuItemActive {
   font-weight: 600;
 }
@@ -149,6 +157,67 @@
 
 .menuDanger:hover {
   background: var(--sv-color-error-surface);
+}
+
+/* Mobile-only sheet wrapping .menu inside MobileFullPageOverlay — same
+   header/close pattern as ListSidebar's .renameSheet* (see its own comments
+   for the sticky-header/safe-area reasoning), duplicated here rather than
+   shared since the two live in different CSS modules. */
+.menuSheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 0 var(--sv-space-5) calc(var(--sv-space-8) + env(safe-area-inset-bottom));
+}
+
+.menuSheetHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 calc(-1 * var(--sv-space-5));
+  padding: var(--sv-space-5) var(--sv-space-5) var(--sv-space-3);
+  background: var(--sv-color-surface);
+  border-bottom: 1px solid var(--sv-color-border);
+}
+
+.menuSheetTitle {
+  font-size: var(--sv-font-size-md);
+  font-weight: 600;
+  color: var(--sv-color-text-primary);
+}
+
+.menuSheetClose {
+  all: unset;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--sv-radius-sm);
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+}
+
+.menuSheetClose:hover {
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-primary);
+}
+
+/* Same invisible ~44px hit-area overlay technique as TaskDetailPane's
+   .close — see its comment. */
+.menuSheetClose::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .confirmNativeDialog {

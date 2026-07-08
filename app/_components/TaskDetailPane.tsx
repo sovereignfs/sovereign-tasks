@@ -1,7 +1,6 @@
 'use client';
 
 import { Button, Checkbox, EmptyState, Icon } from '@sovereignfs/ui';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { deleteTask, setRecurrenceRule, toggleComplete, updateTask } from '../_lib/actions';
@@ -203,9 +202,14 @@ function DetailBody({
           onOptimisticChange={(next) => onFieldPatch?.({ favorite: next })}
           className={styles.star}
         />
-        <Link href={closeHref} replace className={styles.close} aria-label="Close details">
+        <button
+          type="button"
+          className={styles.close}
+          aria-label="Close details"
+          onClick={() => router.replace(closeHref, { scroll: false })}
+        >
           ✕
-        </Link>
+        </button>
       </div>
 
       <label className={styles.sectionLabel} htmlFor="task-notes">
