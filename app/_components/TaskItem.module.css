@@ -114,16 +114,33 @@
 
 /* Mobile swipe-to-reveal's actions, behind .row. Sized/positioned so only
    their combined width (SWIPE_REVEAL_WIDTH in TaskItem.tsx) is ever exposed,
-   however far .row slides. */
+   however far .row slides. top/bottom are inset 3px (not flush 0, unlike
+   left/right) — .row's opaque cover and this layer measure pixel-identical
+   via getBoundingClientRect, but Chrome still leaves a sub-device-pixel
+   antialiasing seam where the two separately-painted/stacked layers share an
+   exact top/bottom edge. Invisible against the old pale error/success-surface
+   fill; became a visible hairline once these buttons switched to the vivid
+   solid-token fill (see TaskItem.tsx). The inset trades an imperceptible
+   sliver of the buttons' own top/bottom for guaranteeing any seam pixel shows
+   the row's own background instead of the button colour, regardless of the
+   underlying rendering quirk. */
 .swipeActionsBg {
   position: absolute;
-  inset: 0;
+  top: 3px;
+  right: 0;
+  bottom: 3px;
+  left: 0;
   z-index: 0;
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
 }
 
+/* Solid fills (not the pale *-surface tokens used elsewhere in this plugin)
+   — a swipe-revealed action reads as a committed button the finger is about
+   to release onto, not a tinted status surface, so it gets the same
+   treatment as a filled action button. See semantic.css's own comment on
+   *-solid for why these aren't theme-flipped. */
 .swipeDoneBtn {
   all: unset;
   width: 64px;
@@ -131,10 +148,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--sv-color-success-surface);
-  color: var(--sv-color-success-text);
-  font-size: var(--sv-font-size-sm);
-  font-weight: 600;
+  background: var(--sv-color-success-solid);
+  color: var(--sv-color-text-on-success);
   cursor: pointer;
 }
 
@@ -145,10 +160,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--sv-color-error-surface);
-  color: var(--sv-color-error-text);
-  font-size: var(--sv-font-size-sm);
-  font-weight: 600;
+  background: var(--sv-color-error-solid);
+  color: var(--sv-color-text-on-error);
   cursor: pointer;
 }
 

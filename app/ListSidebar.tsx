@@ -602,7 +602,7 @@ function ListItem({
             onRequestDelete(list);
           }}
         >
-          Delete
+          <Icon name="trash-2" size="md" aria-hidden />
         </button>
       </div>
       <div
