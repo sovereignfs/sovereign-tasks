@@ -86,6 +86,14 @@ Console admin user routes as a workaround.
 
 - Consume `@sovereignfs/ui` components and `--sv-*` tokens exclusively.
 - Never hardcode colours, spacing, or radii — always reference tokens.
+- **DS-first: this plugin is a consumer.** Never hand-roll reusable UI
+  primitives here (interaction hooks, overlays, secondary headers, pickers) —
+  they are added to `@sovereignfs/ui` in the platform repo and consumed from
+  there. The existing local primitives (`MobileFullPageOverlay.tsx`,
+  `_lib/doubleTap.ts`, `_lib/useIsMobile.ts`) predate this rule and are slated
+  for replacement by design-system equivalents — see the platform repo's
+  `docs/adhoc/mobile-design-system-improvement-plan.md`. Don't extend them;
+  don't add new siblings.
 - **Three-column layout on web:** list sidebar (col 1) · task list (col 2) ·
   task detail (col 3). The detail pane is driven by the `?task=<id>` search
   param on `/tasks/[listId]`; it collapses below ~900px (tablet — no detail
@@ -243,7 +251,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.9.1**
+Current version: **0.9.3**
 
 ## Running locally
 

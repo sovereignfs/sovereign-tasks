@@ -1,10 +1,10 @@
 'use client';
 
-import { Checkbox, Icon } from '@sovereignfs/ui';
+import { Checkbox, Icon, useLongPress } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
+import { useOptimistic, useRef, useState, useTransition } from 'react';
 import { deleteTask, toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
 import { summaryLabel } from '../_lib/recurrence';
@@ -16,9 +16,6 @@ import StarButton from './StarButton';
 import SubtaskList from './SubtaskList';
 import styles from './TaskItem.module.css';
 
-// TSK-20/21: how long a touch must be held before it counts as a long-press
-// (the touch equivalent of a desktop ctrl/cmd-click) to enter bulk-select.
-const LONG_PRESS_MS = 500;
 
 // Mobile-only swipe-to-reveal (Done + Delete) — width per button (px), must
 // match .swipeDoneBtn/.swipeDeleteBtn's own width in TaskItem.module.css. Two
@@ -83,8 +80,14 @@ export default function TaskItem({
   // Instant local hide on Delete — deleteTask + onMutated's eventual refresh
   // still run, but the row doesn't sit there for that round trip.
   const [locallyDeleted, setLocallyDeleted] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressNextClick = useRef(false);
+  // TSK-20/21: long-press to enter bulk-select on touch (the touch equivalent of
+  // a desktop ctrl/cmd-click). The DS hook carries the slop threshold,
+  // pointercancel handling, time-boxed click suppression, and OS
+  // callout/selection suppression the previous hand-rolled timer lacked.
+  const longPress = useLongPress({
+    onLongPress: () => onBulkToggle?.(task.id),
+    disabled: !onBulkToggle,
+  });
   const rowRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{
     startX: number;
@@ -189,34 +192,13 @@ export default function TaskItem({
     });
   }
 
-  function clearLongPressTimer() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }
-
-  // pointerup/pointerleave/pointermove only clear the timer while the row is
-  // still mounted and receiving those events — if the row unmounts mid-press
-  // (its task is deleted/moved by a sync elsewhere while a finger is still
-  // down), none of those fire, and the timeout would otherwise still call
-  // onBulkToggle against a task that's no longer part of the current view.
-  useEffect(() => clearLongPressTimer, []);
-
-  function handlePointerDown(e: React.PointerEvent) {
-    if (e.pointerType !== 'touch' || !onBulkToggle) return;
-    longPressTimer.current = setTimeout(() => {
-      suppressNextClick.current = true;
-      onBulkToggle(task.id);
-    }, LONG_PRESS_MS);
-  }
-
   function handleMainClick(e: React.MouseEvent) {
-    if (suppressNextClick.current) {
-      suppressNextClick.current = false;
-      e.preventDefault();
-      return;
-    }
+    // Let the DS hook swallow the click that may follow a long-press (it
+    // preventDefaults within its time-boxed window); if it did, stop here so
+    // the tap doesn't also navigate.
+    longPress.onClick(e);
+    if (e.defaultPrevented) return;
+    // Desktop bulk-select via ctrl/cmd-click (touch uses the long-press above).
     if (onBulkToggle && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       onBulkToggle(task.id);
@@ -294,11 +276,12 @@ export default function TaskItem({
         <Link
           href={detailHref}
           className={styles.main}
+          // Spread the long-press handlers (pointer events, onContextMenu, and
+          // the coarse-pointer-only touch-callout/user-select/touch-action
+          // `style`), then override onClick to compose the hook's click
+          // suppression with the desktop ctrl/cmd-click bulk toggle.
+          {...longPress}
           onClick={handleMainClick}
-          onPointerDown={handlePointerDown}
-          onPointerUp={clearLongPressTimer}
-          onPointerLeave={clearLongPressTimer}
-          onPointerMove={clearLongPressTimer}
         >
           <span
             className={[styles.title, isComplete ? styles.complete : ''].filter(Boolean).join(' ')}

@@ -159,7 +159,11 @@ export default function TasksPane({
   const [swipeOpenTaskId, setSwipeOpenTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    // Require 8px of movement before a pointer press becomes a drag — without
+    // it, a plain click/tap on the (hover-revealed) grip is interpreted as an
+    // immediate drag. Pairs with the drag handle's own touch-action rules in
+    // TaskItem.module.css.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
