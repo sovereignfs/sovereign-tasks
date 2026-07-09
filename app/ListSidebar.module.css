@@ -138,6 +138,19 @@
   opacity: 0;
   transition: opacity 0.1s ease;
   border-radius: var(--sv-radius-sm);
+  /* The drag is JS-driven (dnd-kit), so the browser must not treat a press on
+     the handle as a scroll/pan gesture that would fight it. */
+  touch-action: none;
+}
+
+/* On pure-touch devices the handle is never revealed (hover/focus only, below)
+   and drag-reorder isn't a usable touch gesture here — make it inert to touch
+   so a scroll starting on this invisible corner isn't captured as a drag (plan
+   finding 1.5). Desktop / hybrid touch-laptops (hover: hover) keep it draggable. */
+@media (hover: none) {
+  .dragHandle {
+    pointer-events: none;
+  }
 }
 
 .dragHandle:active {

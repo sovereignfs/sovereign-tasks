@@ -17,7 +17,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Icon, Popover, Tooltip } from '@sovereignfs/ui';
+import {
+  Button,
+  Icon,
+  Popover,
+  Tooltip,
+  useDoubleTapHandler,
+  useSingleOrDoubleTap,
+} from '@sovereignfs/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
@@ -25,7 +32,6 @@ import { createList, deleteList, reorderLists, updateList, updateListColor } fro
 import GripIcon from './_components/GripIcon';
 import MobileFullPageOverlay from './_components/MobileFullPageOverlay';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
-import { useDoubleTapHandler, useSingleOrDoubleTap } from './_lib/doubleTap';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
@@ -83,7 +89,11 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    // Require 8px of movement before a pointer press becomes a drag — without
+    // it, a plain click/tap on the (hover-revealed) grip is interpreted as an
+    // immediate drag. Pairs with the drag handle's own touch-action rules in
+    // ListSidebar.module.css.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
