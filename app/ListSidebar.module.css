@@ -348,10 +348,20 @@
   cursor: pointer;
 }
 
+/* Expand the tappable region to the platform's minimum touch target without
+   growing the visible box — same pattern as @sovereignfs/ui's Checkbox
+   (negative-inset overlay instead of min-width/min-height directly on the
+   button). Growing the box itself here inflated the whole row's height
+   (nothing else in .rowInner is taller than this button) and visually
+   shifted the "⋯" glyph off its centred position, out of alignment with the
+   header's "+" button above it — both symptoms of the same mistake. A
+   pseudo-element extends the hit area only; hits on it still resolve to
+   this button, since it's part of the button's own hit-testing box. */
 @media (pointer: coarse) {
-  .listOptionsBtn {
-    min-width: var(--sv-touch-target-min, 44px);
-    min-height: var(--sv-touch-target-min, 44px);
+  .listOptionsBtn::before {
+    content: '';
+    position: absolute;
+    inset: calc((28px - var(--sv-touch-target-min, 44px)) / 2);
   }
 }
 
