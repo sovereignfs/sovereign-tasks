@@ -17,20 +17,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Button,
-  Icon,
-  Popover,
-  Tooltip,
-  useDoubleTapHandler,
-  useSingleOrDoubleTap,
-} from '@sovereignfs/ui';
+import { Button, ConfirmDialog, Icon, Popover, Sheet, Tooltip, useDoubleTapHandler } from '@sovereignfs/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { createList, deleteList, reorderLists, updateList, updateListColor } from './_lib/actions';
 import GripIcon from './_components/GripIcon';
-import MobileFullPageOverlay from './_components/MobileFullPageOverlay';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
@@ -86,7 +78,6 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   const [, startTransition] = useTransition();
   const addInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const deleteDialogRef = useRef<HTMLDialogElement>(null);
 
   const sensors = useSensors(
     // Require 8px of movement before a pointer press becomes a drag — without
@@ -108,24 +99,32 @@ export default function ListSidebar({ lists: initialLists }: Props) {
     }
   }, [editingId]);
 
-  // Native <dialog> for the delete confirmation — sized to content, unlike
-  // @sovereignfs/ui's Dialog (a fixed-size box by design for tabbed/multi-view
-  // content), which left a large dead area below a short confirm message.
-  // Mirrors plugins/account's RevokeSessionButton pattern.
+  // First-run swipe-to-delete hint (D2, mobile design-system plan): the edge
+  // zone a drag must start from is real but easy to miss against iOS-native
+  // full-row swipe conventions. Briefly peek the first row's reveal open then
+  // closed, once per browser, so the gesture's existence is shown rather than
+  // only documented. Gated on isMobile (not pointer:coarse) because it's
+  // demonstrating THIS list's touch gesture specifically, not a general
+  // density preference.
+  const isMobileSidebar = useIsMobile();
+  const firstListId = lists[0]?.id;
   useEffect(() => {
-    const el = deleteDialogRef.current;
-    if (!el) return;
-    if (deleteTarget) el.showModal();
-    else el.close();
-  }, [deleteTarget]);
-
-  useEffect(() => {
-    const el = deleteDialogRef.current;
-    if (!el) return;
-    const handleClose = () => setDeleteTarget(null);
-    el.addEventListener('close', handleClose);
-    return () => el.removeEventListener('close', handleClose);
-  }, []);
+    if (!isMobileSidebar || !firstListId) return;
+    if (localStorage.getItem('tasks:seen-swipe-hint')) return;
+    const openTimer = setTimeout(() => setSwipeOpenId(firstListId), 500);
+    const closeTimer = setTimeout(() => {
+      setSwipeOpenId(null);
+      localStorage.setItem('tasks:seen-swipe-hint', '1');
+    }, 1400);
+    return () => {
+      clearTimeout(openTimer);
+      clearTimeout(closeTimer);
+    };
+    // firstListId is a dependency for correctness (avoids a stale id in the
+    // closure), but the localStorage guard above means this is still
+    // effectively once-per-browser — a reorder that changes which list is
+    // first won't re-peek once the flag is set.
+  }, [isMobileSidebar, firstListId]);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -306,31 +305,20 @@ export default function ListSidebar({ lists: initialLists }: Props) {
         <p className={styles.empty}>No lists yet. Create one above.</p>
       )}
 
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
-      <dialog
-        ref={deleteDialogRef}
-        className={styles.confirmNativeDialog}
-        aria-label="Delete list"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setDeleteTarget(null);
-        }}
-      >
-        <div className={styles.confirm}>
-          <h2 className={styles.confirmTitle}>Delete list</h2>
-          <p className={styles.confirmText}>
-            Delete “{deleteTarget?.title}”? This permanently removes the list and all of its tasks.
-            This can’t be undone.
-          </p>
-          <div className={styles.confirmActions}>
-            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Delete list
-            </Button>
-          </div>
-        </div>
-      </dialog>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete list"
+        message={
+          <>
+            Delete "{deleteTarget?.title}"? This permanently removes the list and all of its tasks.
+            This can't be undone.
+          </>
+        }
+        confirmLabel="Delete list"
+        destructive
+      />
     </nav>
   );
 }
@@ -455,7 +443,6 @@ function ListItem({
   onRequestDelete,
 }: ListItemProps) {
   const isMobile = useIsMobile();
-  const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: list.id,
   });
@@ -470,18 +457,13 @@ function ListItem({
       onStartRename(list);
     }
   }
-  // Mobile has no equivalent signal: a touch double-tap's first tap can't
-  // tell whether a second one is coming. Firing navigation immediately on
-  // that first tap (the way <Link> normally would) meant a genuine
-  // double-tap briefly navigated the whole carousel over to this list's
-  // Tasks slide before the second tap reopened the rename+colour drawer —
-  // useSingleOrDoubleTap defers the single-tap navigation instead, so it
-  // only actually happens once the double-tap window has closed with no
-  // second tap.
-  const handleMobileTitleTap = useSingleOrDoubleTap<React.MouseEvent>(
-    () => router.push(`/tasks/${list.id}`),
-    () => onStartRename(list),
-  );
+  // Mobile previously deferred single-tap navigation behind a double-tap
+  // detection window (useSingleOrDoubleTap) so a genuine double-tap-to-rename
+  // didn't briefly navigate first — but that meant every single tap paid the
+  // double-tap window's latency before the carousel would move (decision D1,
+  // mobile design-system plan). Single tap now navigates immediately, same as
+  // desktop's plain <Link> behaviour; rename/colour move to the explicit "⋯"
+  // button below instead of living behind a gesture at all.
   const handleDotDoubleTap = useDoubleTapHandler(() => onColorPickerToggle());
 
   // Mobile-only swipe-to-delete. Tracks the gesture in a ref (not state) so
@@ -667,12 +649,9 @@ function ListItem({
           onClick={(e) => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
             closeSwipeOrElse(e, () => {
-              if (isMobile) {
-                e.preventDefault();
-                handleMobileTitleTap(e);
-              } else {
-                handleDesktopTitleClick(e);
-              }
+              if (!isMobile) handleDesktopTitleClick(e);
+              // Mobile: no interception — the tap navigates immediately via
+              // <Link>'s own default behaviour (see D1 comment above).
             });
           }}
         >
@@ -680,6 +659,16 @@ function ListItem({
         </Link>
         <span className={styles.trail}>
           {list.openCount > 0 && <span className={styles.count}>{list.openCount}</span>}
+          {isMobile && (
+            <button
+              type="button"
+              className={styles.listOptionsBtn}
+              aria-label={`Options for "${list.title}"`}
+              onClick={(e) => closeSwipeOrElse(e, () => onStartRename(list))}
+            >
+              <Icon name="ellipsis-vertical" size="sm" aria-hidden />
+            </button>
+          )}
         </span>
         {isMobile && (
           // The only region a swipe-to-delete drag can start from — see
@@ -697,23 +686,13 @@ function ListItem({
       </div>
 
       {isMobile && (
-        <MobileFullPageOverlay
+        <Sheet
           open={editing}
           onClose={() => onRenameCancel(list)}
           aria-label={`Edit "${list.title}"`}
+          title="Edit list"
         >
           <div className={styles.renameSheet}>
-            <div className={styles.renameSheetHeader}>
-              <span className={styles.renameSheetTitle}>Edit list</span>
-              <button
-                type="button"
-                className={styles.renameSheetClose}
-                aria-label="Close"
-                onClick={() => onRenameCancel(list)}
-              >
-                <Icon name="x" size="sm" aria-hidden />
-              </button>
-            </div>
             <div className={styles.renameSheetBody}>
               <label className={styles.renameSheetLabel} htmlFor={`rename-${list.id}`}>
                 List name
@@ -742,7 +721,7 @@ function ListItem({
               </Button>
             </div>
           </div>
-        </MobileFullPageOverlay>
+        </Sheet>
       )}
     </li>
   );

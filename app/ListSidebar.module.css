@@ -195,16 +195,19 @@
    still allowing vertical page scroll to pass through. Starting the drag
    anywhere else on the row (the common case) hits .rowInner's default
    touch-action instead, so it becomes the carousel's native horizontal swipe
-   uninterrupted. Width matches --sv-space-8 — narrow enough to stay clear of
-   the row's real interactive content (the list Link, colour dot/trigger) but
-   still a reasonable touch target. Transparent and non-visual; only present to
-   claim this region's touch-action and host the pointer handlers. */
+   uninterrupted. Transparent and non-visual; only present to claim this
+   region's touch-action and host the pointer handlers.
+   Width widened from the original --sv-space-8 (32px) to --sv-space-12
+   (48px) — the narrower zone tested as undiscoverable (decision D2, mobile
+   design-system plan); this also comfortably covers .listOptionsBtn, which
+   sits above it in stacking order (see that rule) so a tap resolves to the
+   button while a drag anywhere else in this strip still starts the swipe. */
 .swipeEdgeZone {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: var(--sv-space-8);
+  width: var(--sv-space-12);
   z-index: 2;
   touch-action: pan-y;
 }
@@ -308,6 +311,33 @@
   margin-right: 3px;
 }
 
+/* Mobile-only explicit affordance for rename/colour (D1, mobile design-system
+   plan) — replaces the double-tap gesture that used to defer every single
+   tap's navigation behind a detection window. */
+.listOptionsBtn {
+  all: unset;
+  /* Sits inside .swipeEdgeZone's hotspot (that rule explains why) — a higher
+     z-index than its 2 puts this button on top, so a tap resolves to it
+     while a drag anywhere else in the zone still starts the swipe. */
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--sv-radius-sm);
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .listOptionsBtn {
+    min-width: var(--sv-touch-target-min, 44px);
+    min-height: var(--sv-touch-target-min, 44px);
+  }
+}
+
 /* The colour popover's swatch grid — same one dot trigger (double-click or
    double-tap) on both desktop and mobile now, so no separate "standalone vs.
    combined-menu" variant is needed any more. justify-content: center with a
@@ -393,105 +423,23 @@
   margin: 0;
 }
 
-.confirmNativeDialog {
-  border: none;
-  border-radius: var(--sv-radius-lg);
-  background: var(--sv-color-surface);
-  box-shadow: var(--sv-shadow-overlay);
-  padding: 0;
-  width: 22rem;
-  max-width: calc(100vw - var(--sv-space-8));
-}
-
-.confirmNativeDialog::backdrop {
-  background: var(--sv-color-scrim);
-}
-
-.confirm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sv-space-4);
-  padding: var(--sv-space-6);
-}
-
-.confirmTitle {
-  margin: 0;
-  font-size: var(--sv-font-size-lg);
-  font-weight: 600;
-  color: var(--sv-color-text-primary);
-}
-
-.confirmText {
-  margin: 0;
-  font-size: var(--sv-font-size-sm);
-  line-height: 1.5;
-  color: var(--sv-color-text-subtle);
-}
-
-.confirmActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sv-space-2);
-}
-
-/* Mobile-only "Edit list" full-page sheet (rename + colour), replacing the
-   desktop inline-edit-swap row. See ListItem's isMobile branch. Fills
-   MobileFullPageOverlay's panel — min-height:100% + .renameSheetFooter's
-   margin-top:auto (below) pins Save to the bottom even when content is
-   short, same technique as TaskDetailPane's .delete/.body. */
+/* Mobile-only "Edit list" sheet (rename + colour), replacing the desktop
+   inline-edit-swap row. See ListItem's isMobile branch. Header (title +
+   close) is Sheet's own built-in OverlayHeader, pinned above this by the
+   Sheet panel's own flex layout — this wrapper only owns the scrolling
+   body's padding and the Save button's pin-to-bottom-when-short behaviour.
+   min-height:100% + .renameSheetFooter's margin-top:auto (below) pins Save
+   to the bottom even when content is short, same technique as
+   TaskDetailPane's .delete/.body. */
 .renameSheet {
   display: flex;
   flex-direction: column;
   gap: var(--sv-space-4);
   min-height: 100%;
   box-sizing: border-box;
-  /* Top is owned by .renameSheetHeader itself (see below). Bottom is
-     generous + safe-area-aware so Save has real breathing room above the
-     mobile shell's bottom nav. Padding (not a margin on .renameSheetFooter)
-     is what actually reaches the scroll container — see
-     MobileFullPageOverlay.module.css's .panel comment. */
-  padding: 0 var(--sv-space-5) calc(var(--sv-space-8) + env(safe-area-inset-bottom));
-}
-
-.renameSheetHeader {
-  /* Pinned to the top of MobileFullPageOverlay's panel — the close control
-     must stay reachable without scrolling back up, same reasoning as
-     TaskDetailPane's .top. Carries its own padding + opaque background
-     instead of relying on .renameSheet's (removed above), with matching
-     negative side margins so it reads edge-to-edge while stuck. */
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 calc(-1 * var(--sv-space-5));
-  padding: var(--sv-space-5) var(--sv-space-5) var(--sv-space-3);
-  background: var(--sv-color-surface);
-  border-bottom: 1px solid var(--sv-color-border);
-}
-
-.renameSheetTitle {
-  font-size: var(--sv-font-size-md);
-  font-weight: 600;
-  color: var(--sv-color-text-primary);
-}
-
-.renameSheetClose {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--sv-radius-sm);
-  color: var(--sv-color-text-subtle);
-  cursor: pointer;
-}
-
-.renameSheetClose:hover {
-  background: var(--sv-color-surface-raised);
-  color: var(--sv-color-text-primary);
+  /* Bottom is generous + safe-area-aware so Save has real breathing room
+     above the mobile shell's bottom nav. */
+  padding: var(--sv-space-5) var(--sv-space-5) calc(var(--sv-space-8) + env(safe-area-inset-bottom));
 }
 
 .renameSheetBody {

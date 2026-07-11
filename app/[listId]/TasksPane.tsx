@@ -15,11 +15,10 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable';
-import { Button, Icon, Popover, SegmentedControl } from '@sovereignfs/ui';
+import { ConfirmDialog, Icon, Menu, type MenuEntry, SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import BulkActionBar from '../_components/BulkActionBar';
-import MobileFullPageOverlay from '../_components/MobileFullPageOverlay';
 import TaskItem from '../_components/TaskItem';
 import {
   bulkDeleteTasks,
@@ -124,9 +123,7 @@ export default function TasksPane({
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>('manual');
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const [deleteCompletedOpen, setDeleteCompletedOpen] = useState(false);
-  const deleteCompletedDialogRef = useRef<HTMLDialogElement>(null);
 
   // Whether Filter fits inline in the title row (next to the options menu)
   // instead of folding into that menu. Measured against a hidden "shadow"
@@ -213,40 +210,6 @@ export default function TasksPane({
       renameInputRef.current?.select();
     }
   }, [renaming]);
-
-  // Native <dialog> for the delete confirmation — mirrors ListSidebar's
-  // pattern (sized to content, unlike @sovereignfs/ui's Dialog which is a
-  // fixed-size box by design for tabbed/multi-view content).
-  useEffect(() => {
-    const el = deleteDialogRef.current;
-    if (!el) return;
-    if (deleteOpen) el.showModal();
-    else el.close();
-  }, [deleteOpen]);
-
-  useEffect(() => {
-    const el = deleteDialogRef.current;
-    if (!el) return;
-    const handleClose = () => setDeleteOpen(false);
-    el.addEventListener('close', handleClose);
-    return () => el.removeEventListener('close', handleClose);
-  }, []);
-
-  // Same native <dialog> pattern, for confirming "Delete completed tasks".
-  useEffect(() => {
-    const el = deleteCompletedDialogRef.current;
-    if (!el) return;
-    if (deleteCompletedOpen) el.showModal();
-    else el.close();
-  }, [deleteCompletedOpen]);
-
-  useEffect(() => {
-    const el = deleteCompletedDialogRef.current;
-    if (!el) return;
-    const handleClose = () => setDeleteCompletedOpen(false);
-    el.addEventListener('close', handleClose);
-    return () => el.removeEventListener('close', handleClose);
-  }, []);
 
   function refresh() {
     startTransition(() => router.refresh());
@@ -447,75 +410,42 @@ export default function TasksPane({
     });
   }
 
-  // Shared between the desktop Popover and the mobile MobileFullPageOverlay
-  // sheet below — same options, same handlers, just a different container.
-  // .menuItemMobile bumps each row to the ~44px touch-target minimum; the
-  // Popover's own compact rows are fine with a mouse but too small to
-  // reliably tap.
-  const menuItemClass = (active: boolean) =>
-    [styles.menuItem, isMobile ? styles.menuItemMobile : '', active ? styles.menuItemActive : '']
-      .filter(Boolean)
-      .join(' ');
-  const menuItems = (
-    <>
-      {!filterFitsInline && (
-        <>
-          <span className={styles.menuLabel}>Filter</span>
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              className={menuItemClass(filter === f.value)}
-              onClick={() => {
-                setFilter(f.value);
-                setMenuOpen(false);
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-          <div className={styles.menuDivider} />
-        </>
-      )}
-      <span className={styles.menuLabel}>Sort by</span>
-      {SORT_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          className={menuItemClass(sortBy === opt.value)}
-          onClick={() => {
-            setSortBy(opt.value);
-            setMenuOpen(false);
-          }}
-        >
-          {opt.label}
-        </button>
-      ))}
-      <div className={styles.menuDivider} />
-      {completed.length > 0 && (
-        <button
-          type="button"
-          className={[menuItemClass(false), styles.menuDanger].join(' ')}
-          onClick={() => {
-            setMenuOpen(false);
-            setDeleteCompletedOpen(true);
-          }}
-        >
-          Delete completed tasks
-        </button>
-      )}
-      <button
-        type="button"
-        className={[menuItemClass(false), styles.menuDanger].join(' ')}
-        onClick={() => {
-          setMenuOpen(false);
-          setDeleteOpen(true);
-        }}
-      >
-        Delete list
-      </button>
-    </>
-  );
+  // Shared between the desktop and mobile presentations Menu already forks
+  // internally (Popover / Drawer) — same entries, same handlers either way.
+  const menuItems: MenuEntry[] = [
+    ...(!filterFitsInline
+      ? ([
+          { type: 'label', label: 'Filter' },
+          ...FILTERS.map(
+            (f): MenuEntry => ({
+              label: f.label,
+              checked: filter === f.value,
+              onSelect: () => setFilter(f.value),
+            }),
+          ),
+          { type: 'separator' },
+        ] satisfies MenuEntry[])
+      : []),
+    { type: 'label', label: 'Sort by' },
+    ...SORT_OPTIONS.map(
+      (opt): MenuEntry => ({
+        label: opt.label,
+        checked: sortBy === opt.value,
+        onSelect: () => setSortBy(opt.value),
+      }),
+    ),
+    { type: 'separator' },
+    ...(completed.length > 0
+      ? ([
+          {
+            label: 'Delete completed tasks',
+            destructive: true,
+            onSelect: () => setDeleteCompletedOpen(true),
+          },
+        ] satisfies MenuEntry[])
+      : []),
+    { label: 'Delete list', destructive: true, onSelect: () => setDeleteOpen(true) },
+  ];
 
   return (
     <div className={styles.pane} suppressHydrationWarning>
@@ -578,36 +508,23 @@ export default function TasksPane({
               aria-label="Filter tasks"
             />
           )}
-          {isMobile ? (
-            <button
-              type="button"
-              className={styles.menuBtn}
-              aria-label={`Options for "${list.title}"`}
-              onClick={() => setMenuOpen(true)}
-            >
-              <Icon name="ellipsis-vertical" size="sm" aria-hidden />
-            </button>
-          ) : (
-            <Popover
-              open={menuOpen}
-              onClose={() => setMenuOpen(false)}
-              align="right"
-              width={200}
-              aria-label={`Options for "${list.title}"`}
-              trigger={
-                <button
-                  type="button"
-                  className={styles.menuBtn}
-                  aria-label={`Options for "${list.title}"`}
-                  onClick={() => setMenuOpen((o) => !o)}
-                >
-                  <Icon name="ellipsis-vertical" size="sm" aria-hidden />
-                </button>
-              }
-            >
-              <div className={styles.menu}>{menuItems}</div>
-            </Popover>
-          )}
+          <Menu
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            align="right"
+            aria-label={`Options for "${list.title}"`}
+            items={menuItems}
+            trigger={
+              <button
+                type="button"
+                className={styles.menuBtn}
+                aria-label={`Options for "${list.title}"`}
+                onClick={() => setMenuOpen((o) => !o)}
+              >
+                <Icon name="ellipsis-vertical" size="sm" aria-hidden />
+              </button>
+            }
+          />
         </div>
         {/* Hidden measurement-only clone of the fully-inline row (dot + title
             + count + spacer + Filter + menu button), used to decide
@@ -650,83 +567,35 @@ export default function TasksPane({
         </div>
       </header>
 
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
-      <dialog
-        ref={deleteDialogRef}
-        className={styles.confirmNativeDialog}
-        aria-label="Delete list"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setDeleteOpen(false);
-        }}
-      >
-        <div className={styles.confirm}>
-          <h2 className={styles.confirmTitle}>Delete list</h2>
-          <p className={styles.confirmText}>
+      <ConfirmDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={confirmDeleteList}
+        title="Delete list"
+        message={
+          <>
             Delete "{list.title}"? This permanently removes the list and all of its tasks. This
             can't be undone.
-          </p>
-          <div className={styles.confirmActions}>
-            <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteList}>
-              Delete list
-            </Button>
-          </div>
-        </div>
-      </dialog>
+          </>
+        }
+        confirmLabel="Delete list"
+        destructive
+      />
 
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
-      <dialog
-        ref={deleteCompletedDialogRef}
-        className={styles.confirmNativeDialog}
-        aria-label="Delete completed tasks"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setDeleteCompletedOpen(false);
-        }}
-      >
-        <div className={styles.confirm}>
-          <h2 className={styles.confirmTitle}>
-            Delete {completed.length} completed {completed.length === 1 ? 'task' : 'tasks'}
-          </h2>
-          <p className={styles.confirmText}>
+      <ConfirmDialog
+        open={deleteCompletedOpen}
+        onClose={() => setDeleteCompletedOpen(false)}
+        onConfirm={confirmDeleteCompleted}
+        title={`Delete ${completed.length} completed ${completed.length === 1 ? 'task' : 'tasks'}`}
+        message={
+          <>
             This permanently removes every completed task in "{list.title}" and their subtasks.
             This can't be undone.
-          </p>
-          <div className={styles.confirmActions}>
-            <Button variant="secondary" onClick={() => setDeleteCompletedOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteCompleted}>
-              Delete completed tasks
-            </Button>
-          </div>
-        </div>
-      </dialog>
-
-      {isMobile && (
-        <MobileFullPageOverlay
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          aria-label={`Options for "${list.title}"`}
-          slideFrom="top"
-        >
-          <div className={styles.menuSheet}>
-            <div className={styles.menuSheetHeader}>
-              <span className={styles.menuSheetTitle}>List options</span>
-              <button
-                type="button"
-                className={styles.menuSheetClose}
-                aria-label="Close"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Icon name="x" size="sm" aria-hidden />
-              </button>
-            </div>
-            <div className={styles.menu}>{menuItems}</div>
-          </div>
-        </MobileFullPageOverlay>
-      )}
+          </>
+        }
+        confirmLabel="Delete completed tasks"
+        destructive
+      />
 
       <div className={styles.addRow}>
         <span className={styles.addPlus} aria-hidden>

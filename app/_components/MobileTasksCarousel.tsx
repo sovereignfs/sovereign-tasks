@@ -1,12 +1,12 @@
 'use client';
 
+import { Sheet } from '@sovereignfs/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ListSidebar from '../ListSidebar';
 import TasksPane from '../[listId]/TasksPane';
 import { getOrCreatePrefs, getTask, getTasks } from '../_lib/actions';
 import type { ListRow, TaskRow } from '../_lib/types';
-import MobileFullPageOverlay from './MobileFullPageOverlay';
 import TaskDetailPane, { type DetailTask } from './TaskDetailPane';
 import styles from './MobileTasksCarousel.module.css';
 
@@ -347,7 +347,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         </div>
       )}
 
-      <MobileFullPageOverlay open={showDetailOverlay} onClose={closeDetail} aria-label="Task details">
+      <Sheet open={showDetailOverlay} onClose={closeDetail} aria-label="Task details">
         {displayDetailTask && activeList ? (
           <TaskDetailPane
             task={displayDetailTask}
@@ -358,7 +358,7 @@ export default function MobileTasksCarousel({ lists, refreshSignal }: Props) {
         ) : (
           <div className={styles.slideLoading}>Loading…</div>
         )}
-      </MobileFullPageOverlay>
+      </Sheet>
     </div>
   );
 }
