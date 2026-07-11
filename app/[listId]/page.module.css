@@ -21,6 +21,11 @@
   border-left: 1px solid var(--sv-color-border);
   /* Recessed grey flank, matching the list sidebar (see layout.module.css). */
   background: color-mix(in srgb, var(--sv-color-surface-sunken), var(--sv-color-text-primary) 3%);
+  /* TaskDetailPane's .body reads this (falling back to --sv-color-surface,
+     the correct value for the mobile Sheet context) for its own sticky
+     header's opaque background — see that component's own comment for why
+     this needs to be a custom property, not background-color: inherit. */
+  --tasks-detail-bg: color-mix(in srgb, var(--sv-color-surface-sunken), var(--sv-color-text-primary) 3%);
 }
 
 /* Below three-column width, drop the detail pane (mobile sheet lands later). */
