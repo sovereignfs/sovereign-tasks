@@ -4,7 +4,14 @@ import { sdk } from '@sovereignfs/sdk';
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, like } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { randomUUID } from 'node:crypto';
-import { tasksItems, tasksLists, tasksUserListPrefs, tasksViews } from '../_db/schema';
+import {
+  tasksItems,
+  tasksLists,
+  tasksNotificationPrefs,
+  tasksUserListPrefs,
+  tasksViews,
+} from '../_db/schema';
+import { isValidTimeZone } from './tz';
 import { DEFAULT_LIST_COLOR } from './colors';
 import { nextOccurrence } from './recurrence';
 
@@ -416,12 +423,21 @@ export async function setDueDate(
       // overwriting them all to this one literal dueDate would collapse the
       // whole series onto a single day. Only the time-of-day propagates
       // series-wide; the date itself only ever applies to this one instance.
+      // reminderSentAt re-arms alongside every due change (here and below) so
+      // the scheduler's due-time reminder fires again for the new time — see
+      // app/_jobs/due-reminders.ts.
       await applyToSeries(db, tenantId, task.seriesId, task.dueDate, scope, {
         dueTime: dueDate ? dueTime : null,
+        reminderSentAt: null,
       });
       await db
         .update(tasksItems)
-        .set({ dueDate, dueTime: dueDate ? dueTime : null, updatedAt: now() })
+        .set({
+          dueDate,
+          dueTime: dueDate ? dueTime : null,
+          reminderSentAt: null,
+          updatedAt: now(),
+        })
         .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
       return;
     }
@@ -430,7 +446,7 @@ export async function setDueDate(
   await db
     .update(tasksItems)
     // Due time is only meaningful with a due date; clear it when the date clears.
-    .set({ dueDate, dueTime: dueDate ? dueTime : null, updatedAt: now() })
+    .set({ dueDate, dueTime: dueDate ? dueTime : null, reminderSentAt: null, updatedAt: now() })
     .where(and(eq(tasksItems.id, taskId), eq(tasksItems.tenantId, tenantId)));
 }
 
@@ -663,4 +679,69 @@ export async function updatePrefs(listId: string, patch: { showCompleted?: boole
         eq(tasksUserListPrefs.listId, listId),
       ),
     );
+}
+
+// ── Notification preferences (due/overdue notifications, v0.11) ────────────
+
+const MORNING_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** The caller's notification prefs, or the defaults when never saved. */
+export async function getNotificationPrefs() {
+  const { db, userId, tenantId } = await getContext();
+  const rows = await db
+    .select()
+    .from(tasksNotificationPrefs)
+    .where(
+      and(
+        eq(tasksNotificationPrefs.tenantId, tenantId),
+        eq(tasksNotificationPrefs.userId, userId),
+      ),
+    );
+  const row = rows[0];
+  return {
+    enabled: row?.enabled ?? false,
+    morningTime: row?.morningTime ?? '08:00',
+  };
+}
+
+/**
+ * Upserts the caller's notification prefs. `timezone` is the browser's IANA
+ * zone (Intl.DateTimeFormat().resolvedOptions().timeZone), re-captured on
+ * every save so a user who moves keeps a current "morning" — it defines the
+ * local frame the scheduler evaluates morning_time and due times in
+ * (app/_jobs/due-reminders.ts).
+ */
+export async function saveNotificationPrefs(input: {
+  enabled: boolean;
+  morningTime: string;
+  timezone: string;
+}) {
+  const { db, userId, tenantId } = await getContext();
+  if (!MORNING_TIME_RE.test(input.morningTime)) {
+    throw new Error('morningTime must be HH:MM (24h)');
+  }
+  const timezone = isValidTimeZone(input.timezone) ? input.timezone : 'UTC';
+  const ts = now();
+
+  const updated = await db
+    .update(tasksNotificationPrefs)
+    .set({ enabled: input.enabled, morningTime: input.morningTime, timezone, updatedAt: ts })
+    .where(
+      and(
+        eq(tasksNotificationPrefs.tenantId, tenantId),
+        eq(tasksNotificationPrefs.userId, userId),
+      ),
+    )
+    .returning({ userId: tasksNotificationPrefs.userId });
+  if (updated.length > 0) return;
+
+  await db.insert(tasksNotificationPrefs).values({
+    tenantId,
+    userId,
+    enabled: input.enabled,
+    morningTime: input.morningTime,
+    timezone,
+    createdAt: ts,
+    updatedAt: ts,
+  });
 }

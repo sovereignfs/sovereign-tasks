@@ -82,6 +82,21 @@ entry point; delete's own confirmation stays a centered dialog). Desktop and
 tablet (641–900px) are unchanged. See `CLAUDE.md`'s "Mobile shell" section for
 the implementation model.
 
+## v0.11 — Due/overdue notifications
+
+Shipped ahead of v1.0, following the same queue-jumping pattern as v0.4 and
+the mobile UI work. First consumer of the platform's plugin scheduler
+(sv-RFC 0046 Phase 1) and of `sdk.notifications.send` (sv-RFC 0015/0016 —
+in-app bell plus Web Push when the instance has VAPID configured and the
+user enabled push for a device).
+
+Per-user and opt-in (bell icon in the list sidebar header): a once-per-day
+**morning digest** ("3 tasks due today · 2 overdue") at a user-chosen local
+time, plus a **due-time reminder** per task whose `due_time` arrives.
+Computed in the user's browser-captured IANA timezone; every send is gated
+behind a conditional-UPDATE claim so scheduler restarts/replicas can't
+double-send. See `CLAUDE.md`'s "Due/overdue notifications" section.
+
 ## v1.0 — Polish and reference implementation
 
 Accessibility audit, full keyboard navigation, documentation, and publication to the Sovereign plugin registry as the canonical reference implementation.

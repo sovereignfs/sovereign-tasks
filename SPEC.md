@@ -348,7 +348,7 @@ plugin-specific substitutes.
 | Plugin portability hooks       | Export/import/delete Tasks data through Account-level orchestration.          | sv-RFC 0052, target before v1.0      |
 | Plugin tool contracts          | Future assistant/automation actions such as create or complete task.          | sv-RFC 0047, post-v1                 |
 | Activity logging               | Optional future audit entries for collaboration/share mutations if warranted. | sv-RFC 0005, not required for v0.1   |
-| Notifications                  | Optional future assignment or due-date notifications.                         | sv-RFC 0015/0016, out of scope v1    |
+| Notifications                  | Due/overdue notifications shipped (v0.11): morning digest + due-time reminders via the platform scheduler. Assignment notifications remain future (v0.2+). | sv-RFC 0015/0016/0046               |
 | Plugin capabilities/roles      | Future gates for advanced collaboration or admin-style actions if needed.     | sv-RFC 0021/0022, not required v0.1  |
 
 ### Data contracts

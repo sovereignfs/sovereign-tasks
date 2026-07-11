@@ -89,6 +89,13 @@ export const tasksItems = sqliteTable('tasks_items', {
   dueDate: text('due_date'),
   /** Nullable. 'HH:MM' string. Requires due_date. Added v0.3. */
   dueTime: text('due_time'),
+  /**
+   * Nullable Unix timestamp. Set when the due-time reminder notification for
+   * this task was sent (the scheduler's conditional-UPDATE claim marker —
+   * see app/_jobs/due-reminders.ts); cleared whenever due_date/due_time
+   * change so rescheduling re-arms the reminder. Added v0.11.
+   */
+  reminderSentAt: integer('reminder_sent_at'),
   /** Nullable Unix timestamp. Set on completion, cleared on reopen. */
   completedAt: integer('completed_at'),
   sortOrder: integer('sort_order').notNull().default(0),
@@ -99,5 +106,37 @@ export const tasksItems = sqliteTable('tasks_items', {
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+/**
+ * Per-user notification preferences (v0.11 — due/overdue notifications).
+ * Opt-in: rows exist only after a user opens the notification settings; the
+ * scheduler acts only on rows with enabled = true.
+ */
+export const tasksNotificationPrefs = sqliteTable(
+  'tasks_notification_prefs',
+  {
+    tenantId: text('tenant_id').notNull(),
+    userId: text('user_id').notNull(),
+    /** Master switch — nothing is sent while false (the default). */
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+    /** Local wall-clock time 'HH:MM' for the daily digest. */
+    morningTime: text('morning_time').notNull().default('08:00'),
+    /**
+     * IANA timezone (e.g. 'Europe/Berlin') captured from the user's browser
+     * whenever prefs are saved — defines whose "morning" the digest and the
+     * due-time comparisons use.
+     */
+    timezone: text('timezone').notNull(),
+    /**
+     * 'YYYY-MM-DD' (user-local) of the last morning digest evaluation — the
+     * scheduler's conditional-UPDATE claim marker (see
+     * app/_jobs/due-reminders.ts). Nullable = never evaluated.
+     */
+    lastDigestDate: text('last_digest_date'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.userId] })],
+);
 
 // v0.2 — tasks_list_members will be added here when collaboration lands.

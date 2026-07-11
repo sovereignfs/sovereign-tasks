@@ -37,6 +37,15 @@
   padding: 0 var(--sv-space-4) var(--sv-space-2) var(--sv-space-5);
 }
 
+/* Trailing action cluster (notification bell + new-list). Keeps the "+" as
+   the outermost control so its glyph alignment with the rows' "⋯" buttons
+   (see .listOptionsBtn) is untouched. */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
 .heading {
   font-size: var(--sv-font-size-xs);
   font-weight: 600;

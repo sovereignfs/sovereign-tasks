@@ -23,6 +23,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { createList, deleteList, reorderLists, updateList, updateListColor } from './_lib/actions';
 import GripIcon from './_components/GripIcon';
+import NotificationSettings from './_components/NotificationSettings';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
@@ -224,14 +225,17 @@ export default function ListSidebar({ lists: initialLists }: Props) {
 
       <div className={styles.header}>
         <span className={styles.heading}>My lists</span>
-        <button
-          type="button"
-          className={styles.newBtn}
-          aria-label="New list"
-          onClick={() => setAdding(true)}
-        >
-          <Icon name="plus" size="sm" aria-hidden />
-        </button>
+        <div className={styles.headerActions}>
+          <NotificationSettings />
+          <button
+            type="button"
+            className={styles.newBtn}
+            aria-label="New list"
+            onClick={() => setAdding(true)}
+          >
+            <Icon name="plus" size="sm" aria-hidden />
+          </button>
+        </div>
       </div>
 
       {adding && (
