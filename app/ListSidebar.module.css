@@ -171,21 +171,38 @@
   /* Right padding matches the header's exactly (--sv-space-4) so the count
      lines up in the same column as the "+" button above. */
   padding: var(--sv-space-2) var(--sv-space-4) var(--sv-space-2) var(--sv-space-5);
-  /* Mobile swipe-to-delete: this is the sliding foreground layer, positioned
-     above .swipeDeleteBg (z-index) with an opaque background (inherited from
-     .item, whatever its current state) so the delete action stays hidden
-     until dragged into view. touch-action is left at its default (auto) here
-     — deliberately, so a horizontal touch drag starting anywhere on the row
-     is free to become the carousel's native swipe-between-slides gesture
-     (MobileTasksCarousel's .scroller). Only .swipeEdgeZone below restricts
-     touch-action, so the delete gesture can only ever be *started* from a
-     narrow strip at the row's right edge. The transition animates the snap
-     to open/closed on release; mid-drag, the handlers set transform directly
-     on the DOM node instead, bypassing this transition for immediate feedback. */
   position: relative;
-  z-index: 1;
   background-color: inherit;
   transition: transform 0.2s ease;
+}
+
+/* Mobile swipe-to-delete: this is the sliding foreground layer, positioned
+   above .swipeDeleteBg (z-index) with an opaque background (inherited from
+   .item, whatever its current state) so the delete action stays hidden
+   until dragged into view. touch-action is left at its default (auto) here
+   — deliberately, so a horizontal touch drag starting anywhere on the row
+   is free to become the carousel's native swipe-between-slides gesture
+   (MobileTasksCarousel's .scroller). Only .swipeEdgeZone below restricts
+   touch-action, so the delete gesture can only ever be *started* from a
+   narrow strip at the row's right edge. The transition (above) animates the
+   snap to open/closed on release; mid-drag, the handlers set transform
+   directly on the DOM node instead, bypassing this transition for immediate
+   feedback.
+   Scoped to the same ≤640px threshold useIsMobile() gates the swipe pointer
+   handlers behind (ListSidebar.tsx) — z-index on a position:relative element
+   creates a new stacking context, which on desktop had the side effect of
+   trapping the colour-picker Popover (a descendant, position:absolute,
+   z-index:60) inside this row's own context: the Popover's z-index could
+   never win against a *later* row's .rowInner (same z-index:1, later in DOM
+   order beats it), so the picker silently rendered behind every subsequent
+   row. Desktop doesn't need this z-index at all — .rowInner already paints
+   above .swipeDeleteBg via plain DOM order (it comes later in the markup) —
+   so gating it to mobile removes the trap without changing the swipe
+   layering it exists for. */
+@media (max-width: 640px) {
+  .rowInner {
+    z-index: 1;
+  }
 }
 
 /* Mobile-only hotspot pinned to the row's right edge — the only place a
