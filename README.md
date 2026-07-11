@@ -2,7 +2,7 @@
 
 A minimal, privacy-first task manager for [Sovereign](https://github.com/sovereignfs/sovereign).
 
-**Status:** v0.10.2 — active development  
+**Status:** v0.11.0 — active development  
 **Plugin ID:** `fs.sovereign.tasks`  
 **Route:** `/tasks`
 
