@@ -89,11 +89,14 @@ Console admin user routes as a workaround.
 - **DS-first: this plugin is a consumer.** Never hand-roll reusable UI
   primitives here (interaction hooks, overlays, secondary headers, pickers) —
   they are added to `@sovereignfs/ui` in the platform repo and consumed from
-  there. The existing local primitives (`MobileFullPageOverlay.tsx`,
-  `_lib/doubleTap.ts`, `_lib/useIsMobile.ts`) predate this rule and are slated
-  for replacement by design-system equivalents — see the platform repo's
-  `docs/adhoc/mobile-design-system-improvement-plan.md`. Don't extend them;
-  don't add new siblings.
+  there. `MobileFullPageOverlay.tsx` and `_lib/doubleTap.ts` (hand-rolled
+  local primitives that predated this rule) are gone, replaced by
+  `@sovereignfs/ui`'s `Sheet`/`ConfirmDialog`/`Menu` and interaction hooks —
+  see the platform repo's `docs/adhoc/mobile-design-system-improvement-plan.md`
+  Phase C1. `_lib/useIsMobile.ts` is the one sanctioned exception: a thin
+  wrapper binding this plugin's documented 640px threshold to the DS hook, not
+  a reimplementation of it. Don't add new local overlay/menu/confirm-dialog
+  siblings.
 - **Three-column layout on web:** list sidebar (col 1) · task list (col 2) ·
   task detail (col 3). The detail pane is driven by the `?task=<id>` search
   param on `/tasks/[listId]`; it collapses below ~900px (tablet — no detail
@@ -223,26 +226,32 @@ server-rendered output) at all.
   `scrollend` event — iOS Safari/WKWebView only gained `scrollend` in 17.4,
   and older versions are still a live concern per this plugin's iOS PWA
   history.
-- **Task detail is a `MobileFullPageOverlay`** (`app/_components/MobileFullPageOverlay.tsx`
-  — a full-page slide-up panel, not `@sovereignfs/ui`'s `Drawer`; a task's
-  notes/due-date/repeat/subtasks form needs more room than a partial-height
-  sheet) wrapping the unmodified `TaskDetailPane`, opened/closed by the same
-  `?task=` param convention as desktop. Unlike `Drawer`, there's no scrim and
-  no built-in close control — `TaskDetailPane` supplies its own close button,
-  which must call `router.replace(closeHref, { scroll: false })` directly
-  (not a `next/link` `<Link replace>`, which silently no-ops when only the
-  search param changes on an already-mounted client route — this is what
-  broke the mobile close button before it was fixed to call `router.replace`
+- **Task detail is `@sovereignfs/ui`'s `Sheet`** (no `title` — a task's own
+  composite header, the checkbox + editable title + star + close row, is
+  richer than `Sheet`'s built-in `OverlayHeader` can express, so the content
+  supplies its own, same as it did under the plugin's own predecessor
+  `MobileFullPageOverlay`) wrapping the unmodified `TaskDetailPane`,
+  opened/closed by the same `?task=` param convention as desktop. `Sheet` has
+  no scrim of its own — `TaskDetailPane` supplies its own close button, which
+  must call `router.replace(closeHref, { scroll: false })` directly (not a
+  `next/link` `<Link replace>`, which silently no-ops when only the search
+  param changes on an already-mounted client route — this is what broke the
+  mobile close button before it was fixed to call `router.replace`
   imperatively). Swiping to a different list slide also closes it, since a
   task's detail only makes sense tied to the slide it came from.
 - **List management** (`ListSidebar.tsx`'s `ListItem`): mobile keeps a single
-  combined `⋯` actions `Drawer` (rename, colour, delete together) — the
-  desktop split (double-click title/dot + a separate col-2 header menu, see
-  "UI rules" above) is desktop-only; mobile's own model was left alone.
-  `useIsMobile()` gates which one renders; both call the same handlers
-  (`updateList`, `updateListColor`, etc.). **Delete confirmation is untouched
-  at every breakpoint** — it's already a native `<dialog>` that centers
-  correctly regardless of width.
+  combined "Edit list" `Sheet` (rename + colour; `Sheet`'s own `title` header
+  this time, since the content here has no header of its own), reached via an
+  explicit `⋯` button in the row's trailing region (decision D1 — this used
+  to be a double-tap gesture on the title, which meant every single tap
+  deferred navigation behind a double-tap detection window; single tap now
+  navigates immediately). Desktop keeps its own split (double-click
+  title/dot + a separate col-2 header menu, see "UI rules" above) —
+  `useIsMobile()` gates which renders; both call the same handlers
+  (`updateList`, `updateListColor`, etc.). **Delete confirmation is
+  `@sovereignfs/ui`'s `ConfirmDialog`** at every breakpoint — replacing the
+  native `<dialog>` this plugin's pattern was later promoted into the design
+  system from (see that component's own doc comment).
 
 ## Versioning
 
@@ -251,7 +260,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.9.3**
+Current version: **0.10.0**
 
 ## Running locally
 
