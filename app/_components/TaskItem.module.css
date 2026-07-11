@@ -97,19 +97,35 @@
      star/ring/chevron cluster. */
   padding: var(--sv-space-3) var(--sv-space-5);
   min-height: 44px;
-  /* Mobile swipe-to-reveal: this is the sliding foreground layer, positioned
-     above .swipeActionsBg (z-index) with an opaque background (inherited via
-     .rowContainer from .wrapper, whatever its current state) so Done/Delete
-     stay hidden until dragged into view. touch-action is left at its default
-     (auto) here —
-     deliberately, so a horizontal touch drag starting anywhere on the row is
-     free to become the mobile carousel's native swipe-between-lists gesture.
-     Only .swipeEdgeZone below restricts touch-action, so the reveal can only
-     ever be *started* from a narrow strip at the row's right edge. */
   position: relative;
-  z-index: 1;
   background-color: inherit;
   transition: transform 0.2s ease;
+}
+
+/* Mobile swipe-to-reveal: this is the sliding foreground layer, positioned
+   above .swipeActionsBg (z-index) with an opaque background (inherited via
+   .rowContainer from .wrapper, whatever its current state) so Done/Delete
+   stay hidden until dragged into view. touch-action is left at its default
+   (auto) here — deliberately, so a horizontal touch drag starting anywhere
+   on the row is free to become the mobile carousel's native
+   swipe-between-lists gesture. Only .swipeEdgeZone below restricts
+   touch-action, so the reveal can only ever be *started* from a narrow strip
+   at the row's right edge.
+   Scoped to the same ≤640px threshold useIsMobile() gates the swipe pointer
+   handlers behind (TaskItem.tsx) — see ListSidebar.module.css's identical
+   .rowInner rule for why this must not apply unconditionally: z-index on a
+   position:relative element creates a new stacking context, which traps any
+   position:absolute overlay rendered inside this row (e.g. a Popover-based
+   control) so it can never out-rank a *later* sibling row, regardless of its
+   own z-index — a real bug once hit via ListSidebar's colour-picker. No
+   Popover is nested inline in a task row today, but the trap is identical if
+   one ever is. Desktop doesn't need this z-index at all — .row already
+   paints above .swipeActionsBg via plain DOM order (it comes later in the
+   markup). */
+@media (max-width: 640px) {
+  .row {
+    z-index: 1;
+  }
 }
 
 /* Positioned anchor for .swipeActionsBg, scoped to just the row's own height
