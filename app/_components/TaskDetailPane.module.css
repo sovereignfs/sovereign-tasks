@@ -24,23 +24,32 @@
   min-height: 100%;
   box-sizing: border-box;
   /* .top (below) needs an opaque background while stuck, but the correct
-     colour differs by context: white (--sv-color-surface) inside
-     MobileFullPageOverlay's panel on mobile, vs. the desktop three-column
-     layout's grey-tinted .detailCol (page.module.css). inherit — rather than
-     hardcoding one — picks up whichever this row's direct parent actually
-     has, exactly as ListSidebar's .item/.rowInner already does for the same
-     reason. */
-  background-color: inherit;
+     colour differs by context: white (--sv-color-surface) inside Sheet's
+     panel on mobile, vs. the desktop three-column layout's grey-tinted
+     .detailCol (page.module.css). This used to be background-color: inherit,
+     picking up whichever this row's direct parent actually has — but that
+     only reads the *direct* parent's own computed value, and Sheet's own
+     .content wrapper (an intermediate ancestor here, not .body's direct
+     parent either way) never sets a background-color of its own. inherit
+     silently resolved to transparent on mobile as a result, all the way down
+     through .top, letting scrolled body content show through the "sticky"
+     header instead of being covered by it. A custom property doesn't have
+     this problem — it cascades through any depth of nesting regardless of
+     whether an intermediate element sets a real background — so .detailCol
+     below overrides it for desktop and mobile is simply whatever the
+     fallback default already is. */
+  background-color: var(--tasks-detail-bg, var(--sv-color-surface));
 }
 
 .top {
-  /* Pinned to the top of whatever scrolls this pane (MobileFullPageOverlay's
-     panel on mobile; column 3's own scroll container on desktop) — the
-     close control must stay reachable without scrolling back up. Carries its
-     own padding + opaque background instead of relying on .body's (removed
-     above) so it looks identical stuck or not, and negative side margins
-     extend it edge-to-edge past .body's own horizontal padding so scrolled
-     content never peeks out from the sides while stuck. */
+  /* Pinned to the top of whatever scrolls this pane (Sheet's panel on
+     mobile; column 3's own scroll container on desktop) — the close control
+     must stay reachable without scrolling back up. Carries its own padding +
+     opaque background (inherited from .body, which now resolves to a real
+     colour via --tasks-detail-bg — see .body's own comment) so it looks
+     identical stuck or not, and negative side margins extend it edge-to-edge
+     past .body's own horizontal padding so scrolled content never peeks out
+     from the sides while stuck. */
   position: sticky;
   top: 0;
   z-index: 1;

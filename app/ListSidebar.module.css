@@ -343,6 +343,15 @@
   justify-content: center;
   width: 28px;
   height: 28px;
+  /* The header's "+" is a 16px icon centred in a 22px button, so its glyph
+     sits (22-16)/2 = 3px from the button's true right edge. This button is
+     28px (needs the extra room for the swipe-edge-zone hit area below), so
+     its own 16px icon centres 6px from its edge instead — 3px further left
+     than the header's, even though both buttons' right edges align exactly
+     against .rowInner/.header's identical right padding. Nudge the whole
+     button 3px right so the glyphs — not just the boxes — line up. Same
+     reasoning as .count's margin-right below. */
+  margin-right: -3px;
   border-radius: var(--sv-radius-sm);
   color: var(--sv-color-text-subtle);
   cursor: pointer;
