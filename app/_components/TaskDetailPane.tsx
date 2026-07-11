@@ -103,8 +103,23 @@ function DetailBody({
   useLayoutEffect(() => {
     const el = titleRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    function resize() {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+    resize();
+    // Re-measure once web fonts finish loading. The runtime shell loads
+    // Hanken Grotesk via next/font with display: 'swap' — a fresh navigation
+    // can run this effect's first measurement against the fallback font
+    // (different line-height/character width), then the font swaps in
+    // afterward with no re-render to trigger this effect again (title hasn't
+    // changed). Without this, the fixed height stays sized to the fallback
+    // font's line count, and the re-rendered text — now taller — overflows
+    // its own textarea, overlapping the Notes section below it.
+    if (typeof document !== 'undefined' && document.fonts) {
+      void document.fonts.ready.then(resize);
+    }
   }, [title]);
 
   const closeHref = `/tasks/${listId}`;
