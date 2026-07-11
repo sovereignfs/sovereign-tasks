@@ -1,0 +1,95 @@
+/* Trigger — visually a sibling of ListSidebar's .newBtn (same 22px box,
+   subtle-to-primary hover), sitting next to it in the sidebar header. On
+   touch, the ::before overlay extends the tappable area to the 44px minimum
+   without growing the visible box (the Checkbox pattern). */
+.bellBtn {
+  all: unset;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--sv-radius-sm);
+  color: var(--sv-color-text-subtle);
+  cursor: pointer;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.bellBtn:hover {
+  background: var(--sv-color-surface-raised);
+  color: var(--sv-color-text-primary);
+}
+
+@media (pointer: coarse) {
+  .bellBtn::before {
+    content: '';
+    position: absolute;
+    inset: calc((22px - var(--sv-touch-target-min, 44px)) / 2);
+  }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-5);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-4);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: var(--sv-font-size-sm);
+  font-weight: 500;
+  color: var(--sv-color-text-primary);
+}
+
+.rowHint {
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-subtle);
+  line-height: 1.5;
+}
+
+.timeInput {
+  font: inherit;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-primary);
+  background: var(--sv-color-surface-raised);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-1) var(--sv-space-2);
+}
+
+.timeInput:disabled {
+  opacity: 0.5;
+}
+
+.timeInput:focus {
+  outline: none;
+  border-color: var(--sv-color-accent);
+}
+
+.pushHint {
+  margin: 0;
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-subtle);
+  line-height: 1.5;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}

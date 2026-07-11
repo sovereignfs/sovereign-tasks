@@ -70,6 +70,7 @@ export const tasksItems = pgTable('tasks_items', {
   favorite: integer('favorite').notNull().default(0),
   dueDate: text('due_date'),
   dueTime: text('due_time'),
+  reminderSentAt: integer('reminder_sent_at'),
   completedAt: integer('completed_at'),
   sortOrder: integer('sort_order').notNull().default(0),
   recurrenceRule: text('recurrence_rule'),
@@ -77,3 +78,18 @@ export const tasksItems = pgTable('tasks_items', {
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+export const tasksNotificationPrefs = pgTable(
+  'tasks_notification_prefs',
+  {
+    tenantId: text('tenant_id').notNull(),
+    userId: text('user_id').notNull(),
+    enabled: integer('enabled').notNull().default(0),
+    morningTime: text('morning_time').notNull().default('08:00'),
+    timezone: text('timezone').notNull(),
+    lastDigestDate: text('last_digest_date'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.userId] })],
+);

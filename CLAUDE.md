@@ -17,8 +17,8 @@ Spec: [SPEC.md](SPEC.md)
 | ------------- | ------------------------------ |
 | Plugin ID     | `fs.sovereign.tasks`           |
 | Route prefix  | `/tasks`                       |
-| Permissions   | `auth:session`, `db:readWrite` |
-| Min platform  | `0.10.0`                       |
+| Permissions   | `auth:session`, `db:readWrite`, `notifications:send` |
+| Min platform  | `0.19.0`                       |
 | Table prefix  | `tasks_`                       |
 
 ## SDK-only rule
@@ -59,6 +59,7 @@ All plugin tables are prefixed `tasks_`:
 - `tasks_items`
 - `tasks_views`
 - `tasks_user_list_prefs`
+- `tasks_notification_prefs`
 - `tasks_list_members` (v0.2)
 
 ## Milestone scope
@@ -169,6 +170,27 @@ in `date.ts`, which are correct for UI display but wrong for rrule interop.
 Stored `recurrence_rule` strings never embed `DTSTART` — a task's own
 `due_date` is always the anchor, supplied at computation time.
 
+## Due/overdue notifications (v0.11)
+
+`app/_jobs/due-reminders.ts` is a platform-scheduler handler (manifest
+`schedules` entry, sv-RFC 0046 Phase 1, invoked every minute) that sends two
+notification kinds per opted-in user via `sdk.notifications.send`: a
+once-per-local-day **morning digest** (tasks due today + overdue, at the
+user's chosen `morning_time`) and a **due-time reminder** per task whose
+`due_time` arrives today. Everything is computed in the user's stored IANA
+timezone (`tasks_notification_prefs.timezone`, captured from the browser on
+every prefs save — see `NotificationSettings.tsx`, the bell in the list
+sidebar header). **Every send is gated behind a conditional-UPDATE claim**
+(`last_digest_date` on the prefs row; `reminder_sent_at` on the task row)
+because the scheduler gives no delivery guarantees — restarts re-arm it and
+replicas tick independently. `setDueDate` clears `reminder_sent_at` so
+rescheduling re-arms the reminder; never change due date/time through another
+path without doing the same. Timezone math lives in `app/_lib/tz.ts` —
+**never reuse `date.ts` (server-local, UI display) or `recurrence.ts`'s UTC
+helpers (rrule interop) for user-local scheduling decisions.** Editing the
+handler requires a dev-server restart (composed at generate time, imported at
+startup — no HMR).
+
 ## Keyboard shortcuts and bulk select
 
 TSK-19–21, in `TasksPane.tsx`/`TaskItem.tsx`/`BulkActionBar.tsx`. Shortcuts
@@ -266,7 +288,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.10.5**
+Current version: **0.11.0**
 
 ## Running locally
 
