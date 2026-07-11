@@ -252,6 +252,12 @@ server-rendered output) at all.
   `@sovereignfs/ui`'s `ConfirmDialog`** at every breakpoint — replacing the
   native `<dialog>` this plugin's pattern was later promoted into the design
   system from (see that component's own doc comment).
+- **Task rows** (`TaskItem.tsx`): mobile swipe-to-reveal (Done + Delete,
+  edge-zone gesture — see the component's own comments) also gates its Delete
+  button behind `ConfirmDialog`, same as list deletion — a swipe that lands
+  too far can end the gesture directly on the Delete button with no
+  intermediate confirmation otherwise, unlike the desktop detail pane's
+  Delete button (a deliberate second, separate tap).
 
 ## Versioning
 
@@ -260,7 +266,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.10.4**
+Current version: **0.10.5**
 
 ## Running locally
 

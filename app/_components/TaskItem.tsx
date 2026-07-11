@@ -1,6 +1,6 @@
 'use client';
 
-import { Checkbox, Icon, useLongPress } from '@sovereignfs/ui';
+import { Checkbox, ConfirmDialog, Icon, useLongPress } from '@sovereignfs/ui';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
@@ -80,6 +80,14 @@ export default function TaskItem({
   // Instant local hide on Delete — deleteTask + onMutated's eventual refresh
   // still run, but the row doesn't sit there for that round trip.
   const [locallyDeleted, setLocallyDeleted] = useState(false);
+  // Swipe-to-delete is a single edge-zone gesture with no intermediate "are
+  // you sure" affordance built in (unlike the desktop detail pane's Delete
+  // button, which is a deliberate second tap) — a slightly-too-far swipe on
+  // the row can reveal and immediately land on the same Delete button in one
+  // continuous gesture. Gate the actual delete behind the same ConfirmDialog
+  // ListSidebar's own swipe-to-delete already uses, instead of deleting on
+  // tap.
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   // TSK-20/21: long-press to enter bulk-select on touch (the touch equivalent of
   // a desktop ctrl/cmd-click). The DS hook carries the slop threshold,
   // pointercancel handling, time-boxed click suppression, and OS
@@ -185,6 +193,11 @@ export default function TaskItem({
 
   function handleSwipeDelete() {
     onSwipeClose?.();
+    setDeleteConfirmOpen(true);
+  }
+
+  function confirmDelete() {
+    setDeleteConfirmOpen(false);
     setLocallyDeleted(true);
     startTransition(async () => {
       await deleteTask(task.id, task.listId);
@@ -365,6 +378,16 @@ export default function TaskItem({
           onMutated={onMutated}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete task"
+        message={<>Delete "{task.title}"? This can't be undone.</>}
+        confirmLabel="Delete task"
+        destructive
+      />
     </div>
   );
 }
