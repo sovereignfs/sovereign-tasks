@@ -158,18 +158,36 @@ plugin always has: one for lists, one for tasks).
 
 **Mobile: long-press anywhere on the row also lifts it** (v0.12), not just the
 handle — `app/_lib/dndSensors.ts`'s `useReorderSensors()` swaps the old single
-`PointerSensor` for `MouseSensor` (handle-only, desktop, `distance: 8`) +
-`TouchSensor` (`delay: 300, tolerance: 8`) + `KeyboardSensor`. Both custom
-sensor subclasses refuse to activate when the touch/click originated inside an
-element marked `data-no-dnd` (swipe edge zones, checkbox, star, subtask ring,
-list ⋯ button — see `shouldHandleDndEvent`), so those controls keep their own
-tap behavior instead of lifting the row. `touchOnlyListeners()` extracts just
-`onTouchStart` (never `onMouseDown`) when spreading `listeners` onto a row
-container — `isMobile` is a viewport check, not an input-type check, so
-forwarding the full `listeners` object would let a mouse-drag start from the
-row on a narrow *desktop* window too. On task rows specifically, a touch lift
-released back in place (delta < 12px) toggles bulk-select instead of
-reordering — see "Keyboard shortcuts and bulk select" below.
+`PointerSensor` for `MouseSensor` (`distance: 8`) + `TouchSensor`
+(`delay: 300, tolerance: 8`) + `KeyboardSensor`. Both custom sensor subclasses
+refuse to activate when the touch/click originated inside an element marked
+`data-no-dnd` (checkbox, star, subtask ring, swipe edge zones, list ⋯ button,
+the desktop colour-swatch trigger — see `shouldHandleDndEvent`), so those
+controls keep their own tap behavior instead of lifting the row. On task rows
+specifically, a touch lift released back in place (delta < 12px) toggles
+bulk-select instead of reordering — see "Keyboard shortcuts and bulk select"
+below.
+
+**List rows vs. task rows forward listeners differently** (v0.12.1) — a
+deliberate divergence, not an oversight:
+
+- **`ListSidebar.tsx`'s `ListItem`** spreads `listeners` onto `.rowInner`
+  *unconditionally*, on every breakpoint — press-and-drag from anywhere on a
+  list row works via mouse or touch. The ~12px hover-revealed handle
+  (opacity 0 until `:hover`) turned out too easy to miss entirely on desktop;
+  since `MouseSensor`'s own `distance: 8` activation constraint already keeps
+  an ordinary click (rename, navigate, open the colour picker) from being
+  mistaken for a drag, there's no narrow-desktop-window trade-off to guard
+  against the way task rows have.
+- **`TaskItem.tsx`** still forwards `onTouchStart` only, and only when
+  `isMobile` (via `touchOnlyListeners()`), keeping desktop mouse-drag
+  handle-only same as before this feature. `isMobile` is a viewport check,
+  not an input-type check, so forwarding full `listeners` there would let a
+  mouse-drag start from the row on a narrow *desktop* window — task rows pack
+  more competing controls into less space (checkbox, star, subtask ring,
+  swipe zone) than a list row does, so this one keeps the narrower, more
+  conservative behavior. Revisit if the same discoverability complaint comes
+  up for task rows.
 
 ## Recurrence
 
@@ -316,7 +334,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.12.0**
+Current version: **0.12.1**
 
 ## Running locally
 

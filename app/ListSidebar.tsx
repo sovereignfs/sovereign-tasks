@@ -17,7 +17,7 @@ import { createList, deleteList, reorderLists, updateList, updateListColor } fro
 import GripIcon from './_components/GripIcon';
 import NotificationSettings from './_components/NotificationSettings';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
-import { touchOnlyListeners, useReorderSensors } from './_lib/dndSensors';
+import { useReorderSensors } from './_lib/dndSensors';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
@@ -444,11 +444,18 @@ function ListItem({
     id: list.id,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
-  // Mobile only: let a long-press anywhere on the row (not just the hidden
-  // handle) lift it — see touchOnlyListeners' own doc comment for why only
-  // the touch activator is forwarded. The handle itself keeps the full
-  // `listeners` below, unchanged.
-  const rowTouchListeners = touchOnlyListeners(listeners, isMobile);
+  // Every breakpoint: let a press-and-drag anywhere on the row (not just the
+  // ~12px hover-revealed handle) lift it. The handle is easy to miss
+  // entirely — opacity:0 until :hover, and small even once visible — so
+  // unlike TaskItem (which keeps desktop drag handle-only, see that
+  // component's own comment), list rows forward the *full* `listeners`
+  // object unconditionally: MouseSensor's own 8px activation distance
+  // already keeps a plain click (rename/navigate/open colour picker) from
+  // being mistaken for a drag, so there's no narrow-desktop-window
+  // trade-off to guard against here the way TaskItem's touch-only forward
+  // has to. The handle itself keeps `attributes` + `listeners` below too,
+  // unchanged — both remain valid ways to start the same drag.
+  const rowDragListeners = listeners;
 
   // Desktop: e.detail === 2 is the browser's own resolved double-click
   // signal, arriving on the very click that matters — rename can fire (and
@@ -603,7 +610,7 @@ function ListItem({
         ref={rowInnerRef}
         className={styles.rowInner}
         style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
-        {...rowTouchListeners}
+        {...rowDragListeners}
       >
         {isMobile ? (
           // Mobile: the dot is a plain indicator, not its own interactive
@@ -639,6 +646,7 @@ function ListItem({
                 className={styles.dotButton}
                 style={{ background: listDotColor(list.color) }}
                 aria-label={`Change colour for "${list.title}"`}
+                data-no-dnd
                 onClick={(e) => closeSwipeOrElse(e, () => handleDotDoubleTap(e))}
               />
             }
