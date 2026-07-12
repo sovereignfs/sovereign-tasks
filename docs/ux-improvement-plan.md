@@ -13,6 +13,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | planned |
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | planned |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
+| 5 | JSON export/import (account-level data portability) | sovereign-tasks | planned |
 
 ---
 
@@ -519,5 +520,148 @@ description so it isn't mistaken for an incomplete fix later.
 
 ---
 
-<!-- Add Task 5, 6, … above this line as new numbered sections, and keep the
+## Task 5 — JSON export/import (account-level data portability)
+
+**Status:** planned
+**Repo:** sovereign-tasks. Branch type: `feat/` (minor bump).
+
+### Decisions made (no strong preference given; picked the lower-risk default)
+
+1. **Wire into the existing account-level export/import flow (RFC 0007)**,
+   not a standalone in-plugin "export as JSON" button. Every other plugin's
+   data leaves/enters an instance this way (Account → Export my data → one
+   ZIP with one `data.json` per plugin; Import restores from that ZIP); this
+   plugin becomes a section in that flow the same way. Zero new UI needed in
+   the Tasks plugin itself. A standalone tasks-only button is a plausible
+   future add-on, not built here.
+2. **Include a deletion handler (RFC 0033)** alongside export/import — once a
+   plugin is wired into the portability system at all, leaving account
+   deletion unhandled means tasks data survives as an orphaned row
+   (`ownerId` pointing at a deleted user). Low incremental cost: reuses the
+   existing `deleteList()` cascade logic (see below).
+
+### Problem
+
+There is currently no way to get tasks data out of (or back into) an
+instance — no backup, no instance-to-instance move, no participation in
+account-level export/deletion.
+
+### Current state (verified — the platform side needs zero changes)
+
+- **SDK contract** (`packages/sdk/src/portability.ts`): `ExportContext { userId, tenantId }`;
+  `ImportContext { userId, tenantId, remapId(originalId): string }` — a
+  stable per-import id remapper; `PluginExportSection { pluginId, schemaVersion, data, blobs? }`
+  is the required return envelope (`data` itself is plugin-defined JSON);
+  `sdk.portability.provideExport(resolver)` / `provideImport(handler)` /
+  `provideDelete(handler)` register the plugin's functions — must be called
+  from request-scoped plugin code (reads `x-sovereign-plugin-id` from
+  headers), so registration happens once from `app/layout.tsx`, same as every
+  other request-scoped setup.
+- **Reference implementation to mirror**: `plugins/sovereign-plainwrite.local/app/_lib/portability.ts`,
+  registered from that plugin's `layout.tsx`. Pattern: direct Drizzle queries
+  scoped by `tenantId`+ownership (not the UI-shaped action functions, which
+  add derived fields); a type-guard validating the imported shape before
+  touching the DB; **additive import — never wipes existing data**; id
+  collisions handled via `ctx.remapId()` + a local id map translating every
+  cross-reference; secrets/credentials excluded from export (metadata only)
+  and never restored on import. Its `__tests__/portability.test.ts` is the
+  test-pattern reference: mocks `@sovereignfs/sdk` to capture the registered
+  functions, mocks `drizzle-orm`'s `eq`/`and` into an interpretable condition
+  tree against an in-memory fake table-keyed db — runs real insert/select/
+  delete logic with no real database.
+- **Runtime orchestration** (`runtime/src/portability/`): `registry.ts` is
+  the in-process registration store; `platform.ts`'s `eligiblePluginIds(permission)`
+  gates participation on the plugin being installed, enabled, and declaring
+  `data:export`/`data:import` in its manifest; `bundle.ts` defines the ZIP
+  layout (`plugins/<pluginId>/data.json` + optional `blobs/`) and per-section
+  checksums; `assemble.ts`/`restore.ts` drive the actual export/import walk —
+  **none of this needs to change**, it already generically supports any
+  plugin that registers.
+- **API routes** (already generic, no change needed): `GET /api/account/export/route.ts`
+  streams the ZIP; `POST /api/account/import/route.ts` accepts a multipart
+  `bundle` file (50 MB cap) and returns an `ImportSummary`.
+- **Manifest gap**: `manifest.json` permissions are currently
+  `["auth:session", "db:readWrite", "notifications:send"]` — missing
+  `data:export` and `data:import` (RFC 0007; distinct from `data:provide`/
+  `data:consume`, which is RFC 0002 cross-plugin sharing, not this).
+- **Schema to serialize** (`app/_db/schema.ts`, all tables carry `tenantId`):
+  `tasksLists` (id, ownerId, title, color, sortOrder, timestamps),
+  `tasksUserListPrefs` (composite PK tenantId+userId+listId; showCompleted,
+  defaultViewId), `tasksViews` (id, listId, ownerId, name, kind, config JSON
+  string, isDefault, sortOrder), `tasksItems` (id, listId, parentId,
+  assigneeId, title, notes, favorite, dueDate, dueTime, reminderSentAt,
+  completedAt, sortOrder, recurrenceRule, seriesId), and
+  `tasksNotificationPrefs` (composite PK tenantId+userId; enabled,
+  morningTime, timezone, lastDigestDate) — user settings data, include it.
+- **Existing cascade logic to reuse for the deletion handler**:
+  `deleteList()` in `app/_lib/actions.ts` (~line 149) already does the
+  ownership-verified app-layer cascade (SQLite has no enforced FK here) —
+  deletes `tasksItems` → `tasksUserListPrefs` → `tasksViews` → `tasksLists`
+  for one list. The deletion handler is "run that per owned list, plus
+  delete the user's own `tasksNotificationPrefs` row."
+
+### Design
+
+**`app/_lib/portability.ts`** (new), registered from `app/layout.tsx`:
+
+- **Export** (`exportTasksData`): direct-query all lists where
+  `ownerId = ctx.userId AND tenantId = ctx.tenantId`; then items/views/prefs
+  scoped to those list ids; plus the user's own `tasksUserListPrefs` and
+  `tasksNotificationPrefs` rows. Return
+  `{ pluginId: 'fs.sovereign.tasks', schemaVersion: 1, data: {...} }` — no
+  `blobs` (tasks has no file attachments).
+- **Import** (`importTasksData`): validate incoming shape with a type guard
+  (reject unrecognized `schemaVersion` or structure, mirroring plainwrite's
+  `isPlainwriteExportData`); **additive only** — no wipe. Remap every
+  plugin-owned id via `ctx.remapId()`: `tasksLists.id`, `tasksViews.id`,
+  `tasksItems.id` (and its self-referencing `parentId` for subtasks), and
+  `seriesId` (recurrence grouping — remap consistently so an imported
+  recurring series stays linked to itself, even though it's not a literal FK
+  to another table). Rewrite every cross-reference through a local id map
+  built during the pass (list→view/item, item→parent, prefs→list/view) the
+  same way plainwrite's `projectIdMap` does, skipping rows whose referenced
+  id isn't in the map instead of hard-failing. `assigneeId` passes through
+  unchanged (nullable, unused — collaboration/TSK-10-14 is still blocked on
+  `sdk.directory`, so this field is always null in practice today; revisit
+  when that ships).
+- **Delete** (`deleteAllTasksData`): for each list owned by the user, run the
+  same steps `deleteList()` already does; separately delete the user's
+  `tasksNotificationPrefs` row (not list-scoped). Return
+  `{ deleted: <total rows>, errors: [] }`.
+
+### Files
+
+| File | Change |
+| --- | --- |
+| `app/_lib/portability.ts` (new) | `exportTasksData`, `importTasksData`, `deleteAllTasksData`, `registerPortabilityHandlers()` |
+| `app/layout.tsx` | call `registerPortabilityHandlers()` (best-effort, matching plainwrite's `layout.tsx` wrapping) |
+| `app/_lib/__tests__/portability.test.ts` (new) | same fake-db/drizzle-mock harness as plainwrite's test; cover: export shape + tenant/owner scoping, import shape rejection, remap + cross-reference rebuild (list/view/item/parentId/seriesId), orphan-reference skip behavior, delete cascade totals |
+| `manifest.json` | add `data:export`, `data:import` permissions |
+| `CLAUDE.md`, `SPEC.md`, `roadmap.md` | note portability participation (proposed TSK-29) |
+| `package.json` | feat → minor bump |
+
+### Verification
+
+1. `pnpm dev`, log in, create lists/tasks/subtasks/a recurring series/starred
+   items, set tasks notification prefs. Account → Export my data → download
+   the ZIP, confirm `plugins/fs.sovereign.tasks/data.json` is present and
+   contains everything.
+2. Delete all tasks data locally (or use a second test account), Account →
+   Import my data → upload the same ZIP → confirm lists/tasks/subtasks/
+   recurring series/stars/prefs are all restored, with new ids (not
+   colliding with anything pre-existing) and correct cross-references (a
+   subtask still points at its parent, a recurring task's series is still
+   linked, `tasksUserListPrefs.defaultViewId` still resolves).
+3. Re-import the same ZIP a second time without deleting anything first →
+   confirm it's additive (existing data untouched, a second copy of
+   everything appears with fresh remapped ids) — matches the documented
+   "additive, no wipe" contract.
+4. Trigger account deletion (or call the deletion handler directly in a
+   test) → confirm all of the user's lists/items/views/prefs are gone.
+5. `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`; version
+   bump; draft PR.
+
+---
+
+<!-- Add Task 6, 7, … above this line as new numbered sections, and keep the
      index table at the top in sync. -->
