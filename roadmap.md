@@ -97,6 +97,20 @@ Computed in the user's browser-captured IANA timezone; every send is gated
 behind a conditional-UPDATE claim so scheduler restarts/replicas can't
 double-send. See `CLAUDE.md`'s "Due/overdue notifications" section.
 
+## v0.12 — Mobile drag-reorder
+
+Shipped ahead of v1.0, same queue-jumping pattern as v0.4/v0.11. Fixes a
+mobile gap left by the hover-only drag handle: below 640px there was
+previously no way to reorder lists or tasks at all
+(`pointer-events: none` on the handle under `@media (hover: none)`,
+deliberately, since a touch drag from an invisible corner would otherwise
+fight scrolling). Both the Lists slide and task rows are now
+long-press-to-drag on touch — a still hold lifts the row; moving it reorders,
+releasing it back in place on a task row toggles bulk-select (the same
+outcome `useLongPress` already gave, just resolved at release instead of
+mid-hold when a reorder is actually possible). See `CLAUDE.md`'s "Drag
+reorder" section for the sensor/exclusion mechanism.
+
 ## v1.0 — Polish and reference implementation
 
 Accessibility audit, full keyboard navigation, documentation, and publication to the Sovereign plugin registry as the canonical reference implementation.

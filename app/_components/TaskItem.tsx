@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useOptimistic, useRef, useState, useTransition } from 'react';
 import { deleteTask, toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
+import { touchOnlyListeners } from '../_lib/dndSensors';
 import { summaryLabel } from '../_lib/recurrence';
 import { useIsMobile } from '../_lib/useIsMobile';
 import type { TaskRow } from '../_lib/types';
@@ -92,9 +93,16 @@ export default function TaskItem({
   // a desktop ctrl/cmd-click). The DS hook carries the slop threshold,
   // pointercancel handling, time-boxed click suppression, and OS
   // callout/selection suppression the previous hand-rolled timer lacked.
+  // Disabled whenever the drag sensor can own the hold gesture instead
+  // (mobile + reorder possible) — TasksPane's handleDragEnd toggles bulk
+  // select itself when that lift is released in place, so only one of the
+  // two mechanisms should be listening for the hold at a time. When
+  // dragDisabled (derived sort order — dnd-kit can't compute a valid
+  // reorder there), this hook stays the only path to bulk-select, same as
+  // before this feature existed.
   const longPress = useLongPress({
     onLongPress: () => onBulkToggle?.(task.id),
-    disabled: !onBulkToggle,
+    disabled: !onBulkToggle || (isMobile && !dragDisabled),
   });
   const rowRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{
@@ -108,6 +116,12 @@ export default function TaskItem({
     disabled: dragDisabled,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  // Mobile only, and only when a reorder is actually possible (dragDisabled
+  // hides the handle and disables useSortable in the same cases): let a
+  // long-press anywhere on the row lift it — see touchOnlyListeners' own doc
+  // comment for why only the touch activator is forwarded. The handle
+  // itself keeps the full `listeners` below, unchanged.
+  const rowTouchListeners = touchOnlyListeners(listeners, isMobile && !dragDisabled);
 
   // Optimistic completion: the checkbox flips instantly on tap instead of
   // waiting on toggleComplete's DB round trip (subtask cascade + main update
@@ -278,13 +292,20 @@ export default function TaskItem({
           className={styles.row}
           style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
           onClickCapture={handleRowClickCapture}
+          {...rowTouchListeners}
         >
-        <Checkbox
-          checked={isComplete}
-          onChange={handleToggle}
-          label=""
-          aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
-        />
+        {/* data-no-dnd: Checkbox doesn't forward arbitrary props to its own
+            root, so the exclusion is marked on this wrapper instead — a
+            long-press on the checkbox should hit its own tap target, not
+            lift the row. display: contents keeps it out of the flex layout. */}
+        <div data-no-dnd style={{ display: 'contents' }}>
+          <Checkbox
+            checked={isComplete}
+            onChange={handleToggle}
+            label=""
+            aria-label={`Mark "${task.title}" ${isComplete ? 'incomplete' : 'complete'}`}
+          />
+        </div>
 
         <Link
           href={detailHref}
@@ -320,7 +341,9 @@ export default function TaskItem({
           )}
         </Link>
 
-        <div className={styles.right}>
+        {/* data-no-dnd: subtask ring + star should take a plain tap/long-press
+            as their own action, not lift the row for reorder. */}
+        <div className={styles.right} data-no-dnd>
           {hasSubtasks && (
             <button
               type="button"
@@ -358,6 +381,7 @@ export default function TaskItem({
           <div
             className={styles.swipeEdgeZone}
             aria-hidden
+            data-no-dnd
             onPointerDown={handleRowPointerDown}
             onPointerMove={handleRowPointerMove}
             onPointerUp={handleRowPointerUp}

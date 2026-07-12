@@ -9,7 +9,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 
 | # | Task | Repo | Status |
 | --- | --- | --- | --- |
-| 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | planned |
+| 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | in progress |
 | 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | planned |
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | planned |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
@@ -20,7 +20,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 
 ## Task 1 — Long-press drag-reorder (lists page + task rows)
 
-**Status:** planned
+**Status:** in progress — implemented on `feat/mobile-drag-reorder`, pending live verification and PR.
 
 ### Problem
 

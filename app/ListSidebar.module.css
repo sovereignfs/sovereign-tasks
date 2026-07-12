@@ -126,6 +126,12 @@
 
 .dragging {
   opacity: 0.5;
+  /* Extra lift affordance for the touch long-press path, where there's no
+     hover state to already hint "this is being picked up" the way a mouse
+     drag has. dnd-kit owns the inline transform (the drag's live position) —
+     this only adds paint, never touches transform itself. */
+  box-shadow: var(--sv-shadow-hover);
+  background: var(--sv-color-surface-raised);
 }
 
 .dragHandle {
@@ -211,6 +217,19 @@
 @media (max-width: 640px) {
   .rowInner {
     z-index: 1;
+  }
+
+  /* On mobile, MobileTasksCarousel mounts this sidebar as slide 0's entire
+     content, inside a .slide that is overflow: hidden — .nav itself had no
+     height or overflow of its own, so a long list of lists silently clipped
+     rather than scrolled (latent bug, unrelated to drag-reorder but must be
+     fixed for it: dnd-kit's auto-scroll-while-dragging needs a real
+     overflow:auto ancestor to drive, and there wasn't one). Desktop is
+     untouched — its column already scrolls via the parent three-column
+     layout, not .nav itself. */
+  .nav {
+    height: 100%;
+    overflow-y: auto;
   }
 }
 
