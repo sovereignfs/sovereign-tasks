@@ -12,6 +12,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | planned |
 | 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | planned |
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | planned |
+| 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
 
 ---
 
@@ -412,5 +413,111 @@ decoration) alongside existing action tests; `isVirtualListId` trivially.
 
 ---
 
-<!-- Add Task 4, 5, … above this line as new numbered sections, and keep the
+## Task 4 — Per-plugin push notification icon
+
+**Status:** planned
+**Repo:** platform monorepo (`sovereignfs/sovereign`) — this is runtime/SDK
+shell chrome, not a tasks-plugin change. Surfaced by a tasks-plugin push
+notification (due-reminder) showing the platform's generic icon instead of
+the Tasks app icon. Branch type: `fix/` (patch bumps).
+
+### Problem
+
+Web Push notifications from every plugin show the platform's generic icon
+(`/icons/icon-192x192.png`) instead of the sending plugin's own icon.
+
+### Root cause (verified)
+
+A semantic mismatch in the SDK, not a missing feature:
+
+- `SendNotificationInput.icon` ([packages/sdk/src/types.ts:133](../../../packages/sdk/src/types.ts))
+  is documented as *"an `<Icon>` name from `@sovereignfs/ui`"* — an SVG
+  component name (e.g. `'calendar'`), intended for in-app rendering.
+- **Nothing in-app actually reads it.** `NotificationBell.tsx`'s `CategoryIcon`
+  switches on `category`, not `icon`; `Toast.tsx` does the same. The field is
+  effectively vestigial for its documented purpose.
+- The only real consumer is `runtime/worker/index.ts:26` —
+  `self.registration.showNotification(data.title, { icon: data.icon ?? '/icons/icon-192x192.png', ... })`.
+  The Push API's `icon` option is a **URL to an image**, not a component name.
+  `sovereign-tasks`'s due-reminder handler passes `icon: 'calendar'`
+  ([app/_jobs/due-reminders.ts:100,156](../app/_jobs/due-reminders.ts)) — the
+  browser tries to fetch `'calendar'` as an image, fails, and silently falls
+  back to the platform default. This is why the tasks push notification showed
+  the "S" platform icon instead of the Tasks icon.
+
+### What already exists (no new infra needed)
+
+- Every installed plugin's icon is already served statically and stably at
+  **`/plugin-icons/<pluginId>.svg`** — copied by `copyPluginIcons()` in
+  `scripts/generate-registry.ts` (~line 443), the same source the launcher
+  tiles use. No session gate.
+- `sendNotification`'s fan-out already carries `source` (the sending plugin's
+  id) all the way through to `fanOutPushToUser`
+  (`runtime/src/sdk-host.ts` → `runtime/src/push.ts`), so a per-plugin default
+  can be computed without any new data being threaded through.
+
+### Platform constraint (does not block the fix, but sets expectations)
+
+**iOS Safari ignores custom push-notification icons entirely.** Apple's Web
+Push implementation always shows the installed PWA's own home-screen icon,
+by design — there is no override, before or after this fix. Chrome and
+Firefox (desktop + Android) *do* respect a custom icon. This fix has real
+value on those platforms; iOS will keep showing the platform icon for every
+plugin's push notifications regardless. State this plainly in the PR
+description so it isn't mistaken for an incomplete fix later.
+
+### Design
+
+1. **Fix the field's semantics.** Repurpose `SendNotificationInput.icon` (and
+   `PushPayload.icon` in `runtime/src/push.ts` /
+   `runtime/worker/index.ts`) to mean *"URL to an image, shown in the OS push
+   notification"* — update the doc comment accordingly. Since nothing in-app
+   consumes it today, this is a safe redefinition, not a breaking change to
+   any real caller (`sovereign-tasks` is currently the only plugin passing an
+   `icon` value, and it's already effectively broken).
+2. **Default to the plugin's own icon.** In `fanOutPushToUser`
+   (`runtime/src/push.ts`), when a notification's `icon` is unset, default it
+   to `/plugin-icons/<source>.svg` using the `source` (plugin id) already
+   available at that point — no new plumbing. An explicit `icon` value passed
+   by a plugin still wins (e.g. a plugin wanting to send a notification-specific
+   image rather than its own logo).
+3. **`sovereign-tasks`'s `icon: 'calendar'`** ([app/_jobs/due-reminders.ts](../app/_jobs/due-reminders.ts)):
+   remove it — the new per-plugin default (the Tasks app icon) is more
+   correct than an arbitrary SVG-name string ever was. (Small follow-up
+   commit in the sovereign-tasks repo, once the platform fix ships.)
+4. **SVG reliability check** (verify at implementation, not assumed): Chrome's
+   Push API `icon` option generally rasterizes SVG correctly on modern
+   versions, but this should be confirmed live rather than assumed — if
+   inconsistent, generate a PNG alongside each plugin's `icon.svg` in
+   `copyPluginIcons()` (a raster fallback) rather than degrading silently.
+
+### Files
+
+| File | Change |
+| --- | --- |
+| `packages/sdk/src/types.ts` | `SendNotificationInput.icon` doc comment corrected (URL, not component name) |
+| `runtime/src/push.ts` | `PushPayload.icon` doc comment corrected; `fanOutPushToUser`/`fanOutPushToUsers` default `icon` to `/plugin-icons/<source>.svg` when unset |
+| `runtime/worker/index.ts` | no logic change expected (already passes `data.icon` through) — confirm during implementation |
+| `runtime/package.json` + root `package.json` | patch bumps (fix) |
+| *(sovereign-tasks repo, follow-up)* `app/_jobs/due-reminders.ts` | remove `icon: 'calendar'` |
+
+### Verification
+
+1. Unit test in `runtime/src/__tests__/push.test.ts`: notification with no
+   `icon` → `sendNotification` called with a payload whose `icon` is
+   `/plugin-icons/<source>.svg`; notification with an explicit `icon` →
+   that value passed through unchanged.
+2. `pnpm dev`, production build (push only runs in a built SW), trigger a
+   tasks due-reminder or any `sdk.notifications.send()` call → inspect the
+   real OS notification on **desktop Chrome/Firefox**: shows the Tasks app
+   icon, not the platform icon.
+3. Confirm on iOS (if available) that the platform icon still shows —
+   expected per the Apple constraint above, not a regression to chase.
+4. `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`; version
+   bumps; draft PR against the platform repo, with the iOS caveat stated in
+   the description.
+
+---
+
+<!-- Add Task 5, 6, … above this line as new numbered sections, and keep the
      index table at the top in sync. -->
