@@ -156,6 +156,21 @@ dnd-kit's auto-incrementing `aria-describedby` IDs aren't guaranteed to match
 between SSR and hydration when multiple `DndContext`s are mounted (which this
 plugin always has: one for lists, one for tasks).
 
+**Mobile: long-press anywhere on the row also lifts it** (v0.12), not just the
+handle — `app/_lib/dndSensors.ts`'s `useReorderSensors()` swaps the old single
+`PointerSensor` for `MouseSensor` (handle-only, desktop, `distance: 8`) +
+`TouchSensor` (`delay: 300, tolerance: 8`) + `KeyboardSensor`. Both custom
+sensor subclasses refuse to activate when the touch/click originated inside an
+element marked `data-no-dnd` (swipe edge zones, checkbox, star, subtask ring,
+list ⋯ button — see `shouldHandleDndEvent`), so those controls keep their own
+tap behavior instead of lifting the row. `touchOnlyListeners()` extracts just
+`onTouchStart` (never `onMouseDown`) when spreading `listeners` onto a row
+container — `isMobile` is a viewport check, not an input-type check, so
+forwarding the full `listeners` object would let a mouse-drag start from the
+row on a narrow *desktop* window too. On task rows specifically, a touch lift
+released back in place (delta < 12px) toggles bulk-select instead of
+reordering — see "Keyboard shortcuts and bulk select" below.
+
 ## Recurrence
 
 Uses `rrule` (sv-RFC 5545) — see `app/_lib/recurrence.ts`. **`rrule` operates
@@ -202,7 +217,13 @@ TSK-19–21, in `TasksPane.tsx`/`TaskItem.tsx`/`BulkActionBar.tsx`. Shortcuts
 the user is typing. Bulk select is entered via **ctrl/cmd-click or long-press
 on a row**, not an explicit "Select" mode button — the row checkbox already
 means "mark complete", so a mode toggle would either shadow that or require
-two different checkbox meanings on the same element. Bulk delete/move go
+two different checkbox meanings on the same element. On mobile, whenever a
+reorder is possible (`sortBy === 'manual'`), the long-press hold is owned by
+the drag sensor instead of `useLongPress` directly: moving the row reorders
+it, releasing in place toggles selection — see "Drag reorder" above.
+`useLongPress` stays the only path to bulk-select when `sortBy !== 'manual'`
+(no valid reorder to compute there) or on desktop (ctrl/cmd-click only; no
+long-press). Bulk delete/move go
 through dedicated server actions (`bulkDeleteTasks`, `bulkMoveTasks` in
 `actions.ts`) that operate on the whole id array in one query per table,
 rather than looping the existing single-task `deleteTask`/`moveTask` — avoids
@@ -280,6 +301,13 @@ server-rendered output) at all.
   too far can end the gesture directly on the Delete button with no
   intermediate confirmation otherwise, unlike the desktop detail pane's
   Delete button (a deliberate second, separate tap).
+- **Reorder via long-press** (v0.12): both the Lists slide (slide 0) and task
+  rows are drag-reorderable on touch now, not just via the hidden hover-only
+  handle — see "Drag reorder" above for the sensor/exclusion mechanism. The
+  Lists slide's `.nav` also gained `height: 100%; overflow-y: auto` (mobile
+  only) as a prerequisite — it previously had no scroll container of its own
+  at all (the carousel `.slide` wrapping it is `overflow: hidden`), a latent
+  bug that also silently capped how many lists were reachable on a long list.
 
 ## Versioning
 
@@ -288,7 +316,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.11.0**
+Current version: **0.12.0**
 
 ## Running locally
 

@@ -1,20 +1,8 @@
 'use client';
 
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { ConfirmDialog, Icon, Menu, type MenuEntry, SegmentedControl } from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
@@ -32,6 +20,7 @@ import {
 } from '../_lib/actions';
 import { isOverdue } from '../_lib/date';
 import { listDotColor } from '../_lib/colors';
+import { useReorderSensors } from '../_lib/dndSensors';
 import { measureTextWidth } from '../_lib/measureText';
 import { SORT_OPTIONS, pinDueTodayAndOverdue, sortTasks, type SortBy } from '../_lib/sort';
 import { useIsMobile } from '../_lib/useIsMobile';
@@ -155,14 +144,10 @@ export default function TasksPane({
   // any previously-open row shut, same pattern as ListSidebar's swipeOpenId.
   const [swipeOpenTaskId, setSwipeOpenTaskId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    // Require 8px of movement before a pointer press becomes a drag — without
-    // it, a plain click/tap on the (hover-revealed) grip is interpreted as an
-    // immediate drag. Pairs with the drag handle's own touch-action rules in
-    // TaskItem.module.css.
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  // MouseSensor (handle-initiated, desktop) + TouchSensor (long-press lift,
+  // mobile) + KeyboardSensor — see app/_lib/dndSensors.ts for the tuning
+  // constants and the data-no-dnd exclusion mechanism.
+  const sensors = useReorderSensors();
 
   const active = tasks.filter((t) => t.completedAt === null);
 
@@ -355,13 +340,38 @@ export default function TasksPane({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeVisible, focusedId, listId, lists, router, selectedIds.size, startTransition]);
 
+  function handleDragStart(event: DragStartEvent) {
+    // Haptic parity with useLongPress's own vibrate cue on bulk-select — a
+    // touch-activated drag is the same "held long enough" moment, just
+    // routed to reorder instead. Mouse/keyboard activation has no vibrate
+    // API to call, and dnd-kit's activatorEvent tells them apart.
+    if (event.activatorEvent instanceof TouchEvent) {
+      navigator.vibrate?.(10);
+    }
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    const { active: a, over, delta } = event;
+    // A long-press lift that's released back in (or near) its starting spot,
+    // on touch, means the user held the row without dragging it anywhere —
+    // the same gesture useLongPress uses for bulk-select elsewhere, just
+    // routed through the drag sensor this time (see dndSensors.ts). Toggle
+    // selection instead of attempting a reorder. The delta guard (not just
+    // `a.id === over.id`) also catches a real drag that scrolled the list
+    // and landed back over its own starting row without moving far.
+    if (
+      event.activatorEvent instanceof TouchEvent &&
+      Math.hypot(delta.x, delta.y) < 12 &&
+      (!over || a.id === over.id)
+    ) {
+      toggleBulkSelect(String(a.id));
+      return;
+    }
     // Guards the same invariant as TaskItem's dragDisabled prop (which hides
     // the handle) — belt and suspenders, since old/newIndex below are looked
     // up against `tasks` (manual order), not the sorted `activeVisible`/
     // `completed` arrays dnd-kit actually rendered handles for.
     if (sortBy !== 'manual') return;
-    const { active: a, over } = event;
     if (!over || a.id === over.id) return;
     const oldIndex = tasks.findIndex((t) => t.id === a.id);
     const newIndex = tasks.findIndex((t) => t.id === over.id);
@@ -617,6 +627,7 @@ export default function TasksPane({
         id="tasks-dnd"
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <SortableContext

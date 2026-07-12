@@ -1,18 +1,10 @@
 'use client';
 
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   arrayMove,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
@@ -25,6 +17,7 @@ import { createList, deleteList, reorderLists, updateList, updateListColor } fro
 import GripIcon from './_components/GripIcon';
 import NotificationSettings from './_components/NotificationSettings';
 import { LIST_SWATCHES, listDotColor } from './_lib/colors';
+import { touchOnlyListeners, useReorderSensors } from './_lib/dndSensors';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
 import styles from './ListSidebar.module.css';
@@ -80,14 +73,10 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   const addInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const sensors = useSensors(
-    // Require 8px of movement before a pointer press becomes a drag — without
-    // it, a plain click/tap on the (hover-revealed) grip is interpreted as an
-    // immediate drag. Pairs with the drag handle's own touch-action rules in
-    // ListSidebar.module.css.
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  // MouseSensor (handle-initiated, desktop) + TouchSensor (long-press lift,
+  // mobile) + KeyboardSensor — see app/_lib/dndSensors.ts for the tuning
+  // constants and the data-no-dnd exclusion mechanism.
+  const sensors = useReorderSensors();
 
   useEffect(() => {
     if (adding) addInputRef.current?.focus();
@@ -152,18 +141,22 @@ export default function ListSidebar({ lists: initialLists }: Props) {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
-    // A pointer-driven drag leaves the handle <button> focused (native
-    // pointerdown-focuses-button behavior); dnd-kit never blurs it after
-    // drop, so :focus-within keeps the grip/menu revealed on the dragged row
-    // even once the mouse has moved elsewhere — alongside whatever row is
-    // now genuinely hovered. Release it so only real hover governs
-    // visibility. Keyboard-driven reorders intentionally keep focus on the
-    // handle so arrow-key navigation can continue, so this only fires for
-    // pointer input.
-    if (event.activatorEvent instanceof PointerEvent) {
+    // A mouse- or touch-driven drag leaves the handle <button> focused
+    // (native pointerdown-focuses-button behavior); dnd-kit never blurs it
+    // after drop, so :focus-within keeps the grip/menu revealed on the
+    // dragged row even once the pointer has moved elsewhere — alongside
+    // whatever row is now genuinely hovered. Release it so only real hover
+    // governs visibility. Keyboard-driven reorders intentionally keep focus
+    // on the handle so arrow-key navigation can continue, so this only fires
+    // for mouse/touch input.
+    if (!(event.activatorEvent instanceof KeyboardEvent)) {
       (document.activeElement as HTMLElement | null)?.blur();
     }
 
+    // Also covers a long-press lift released back in place (touch) — unlike
+    // TaskItem, lists have no select-on-release semantics, so this is simply
+    // a no-op; dnd-kit's own click suppression after an activated touch drag
+    // already keeps it from also navigating.
     if (!over || active.id === over.id) return;
     const oldIndex = lists.findIndex((l) => l.id === active.id);
     const newIndex = lists.findIndex((l) => l.id === over.id);
@@ -451,6 +444,11 @@ function ListItem({
     id: list.id,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  // Mobile only: let a long-press anywhere on the row (not just the hidden
+  // handle) lift it — see touchOnlyListeners' own doc comment for why only
+  // the touch activator is forwarded. The handle itself keeps the full
+  // `listeners` below, unchanged.
+  const rowTouchListeners = touchOnlyListeners(listeners, isMobile);
 
   // Desktop: e.detail === 2 is the browser's own resolved double-click
   // signal, arriving on the very click that matters — rename can fire (and
@@ -605,6 +603,7 @@ function ListItem({
         ref={rowInnerRef}
         className={styles.rowInner}
         style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
+        {...rowTouchListeners}
       >
         {isMobile ? (
           // Mobile: the dot is a plain indicator, not its own interactive
@@ -668,6 +667,7 @@ function ListItem({
               type="button"
               className={styles.listOptionsBtn}
               aria-label={`Options for "${list.title}"`}
+              data-no-dnd
               onClick={(e) => closeSwipeOrElse(e, () => onStartRename(list))}
             >
               <Icon name="ellipsis-vertical" size="sm" aria-hidden />
@@ -678,9 +678,13 @@ function ListItem({
           // The only region a swipe-to-delete drag can start from — see
           // .swipeEdgeZone in ListSidebar.module.css for why this is a
           // separate element rather than handlers on the whole row.
+          // data-no-dnd: a long-press here should extend/complete the swipe
+          // reveal, not lift the row for reorder — the two gestures would
+          // otherwise compete for the same touchstart.
           <div
             className={styles.swipeEdgeZone}
             aria-hidden
+            data-no-dnd
             onPointerDown={handleRowPointerDown}
             onPointerMove={handleRowPointerMove}
             onPointerUp={handleRowPointerUp}
