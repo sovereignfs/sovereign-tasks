@@ -14,6 +14,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | planned |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
 | 5 | JSON export/import (account-level data portability) | sovereign-tasks | planned |
+| 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | planned |
 
 ---
 
@@ -663,5 +664,100 @@ account-level export/deletion.
 
 ---
 
-<!-- Add Task 6, 7, … above this line as new numbered sections, and keep the
+## Task 6 — Sticky list header + add-task row while scrolling
+
+**Status:** planned
+**Repo:** sovereign-tasks. Branch type: `feat/`(minor bump — user-visible
+behavior change) or `fix/` if judged a pure polish item at implementation
+time.
+
+### Problem
+
+On the task-list pane, the list title/⋯-menu header and the "Add a task…"
+input scroll away with the rest of the list. On a long list, both the list's
+identity (which list am I looking at) and the primary "add a task" action
+require scrolling back to the top to reach.
+
+### Current state (verified)
+
+- `.pane` (`app/[listId]/TasksPane.module.css`) is `overflow-y: auto` — the
+  scroll container. `.header` (title row + menu) and `.addRow` (the add-task
+  input) are plain flex children at the top of it, with no sticky
+  positioning — everything scrolls together as one block. Both have their own
+  `border-bottom` already.
+- **A directly relevant precedent + a lesson already learned in this exact
+  plugin**: `TaskDetailPane`'s `.top` uses `position: sticky; top: 0` for
+  the same reason, and it broke once because `background-color: inherit`
+  silently resolved to transparent — an intermediate wrapper (`Sheet`'s
+  `.content`) never set its own `background-color`, so scrolled content
+  showed through the "sticky" header on mobile. Fixed via a
+  `--tasks-detail-bg` custom property (cascades through any depth of
+  nesting) instead of `inherit`. **Reuse that exact technique here** — do not
+  reintroduce `inherit`.
+- `TasksPane` is used for both real lists (`app/[listId]/page.tsx`,
+  `MobileTasksCarousel.tsx`) and — once Task 3 (virtual "Starred" list) ships
+  — the virtual list. Since Task 3 reuses `TasksPane` itself (not a fork),
+  this sticky-header change automatically covers the Starred view too with no
+  extra work, as long as the CSS isn't scoped to anything list-specific.
+- The header's `⋯` button (`.menuBtn`) opens `@sovereignfs/ui`'s `Menu`
+  (`TasksPane.tsx:511`), which forks Popover(desktop)/Drawer(mobile)
+  internally. Popover positioning is normally computed from the trigger's
+  live bounding rect at open time, so a sticky trigger should be unaffected —
+  **verify this live, don't assume** (noted as a regression check below).
+
+### Design
+
+- Wrap `.header` and `.addRow` in a shared sticky container (or make both
+  independently `position: sticky; top: 0`, stacked — `.header` needs
+  `top: 0` and `.addRow` needs `top: <.header's rendered height>` if kept as
+  two separate sticky elements; simpler to wrap both in one
+  `.stickyHeader` block with a single `position: sticky; top: 0` so there's
+  only one offset to maintain).
+- Opaque background via a custom property (matching `TaskDetailPane`'s
+  `--tasks-detail-bg` pattern) — `.pane`'s own background already differs by
+  context (desktop three-column vs. mobile carousel slide), so this needs
+  the same non-`inherit` approach, not a copy-paste of a hardcoded color.
+- Keep the existing `border-bottom` on `.addRow` (or move it to the sticky
+  wrapper's bottom edge) as the visual separator between pinned chrome and
+  scrolling content — same purpose `TaskDetailPane`'s sticky header border
+  already serves.
+- No change to the filter-folds-into-menu measurement logic
+  (`TasksPane.tsx`'s hidden shadow-row technique) — sticky positioning
+  doesn't affect layout measurement, just paint; call out as a regression
+  check rather than assuming zero interaction.
+- Desktop: apply the same sticky treatment for consistency (no
+  mobile-only gate) — in the three-column layout the effect is subtler
+  (the column is usually tall enough that the header rarely scrolls out
+  of view already) but there's no reason to special-case it away.
+
+### Files
+
+| File | Change |
+| --- | --- |
+| `app/[listId]/TasksPane.module.css` | `.header`/`.addRow` → sticky wrapper; opaque background custom property (mirroring `TaskDetailPane.module.css`'s `--tasks-detail-bg`) |
+| `app/[listId]/TasksPane.tsx` | wrap `.header`/`.addRow` JSX in the new sticky container if a wrapper element is needed |
+| `app/[listId]/page.module.css` (desktop three-column layout) | supply the sticky header's background override the same way `.detailCol` does for `TaskDetailPane`, if the token needs a desktop-specific value |
+
+### Verification
+
+1. `pnpm dev`, mobile viewport, a list with enough tasks to scroll: confirm
+   the title/menu row and the add-task input stay pinned at the top while
+   the task rows scroll underneath, with no scrolled content visible through
+   either (the exact bug class fixed for `TaskDetailPane` — check carefully).
+2. Tap the `⋯` menu while scrolled — confirm it opens anchored to the
+   (still-visible, pinned) trigger correctly on both mobile (Drawer) and
+   desktop (Popover).
+3. Confirm the add-task input still works normally while scrolled (type,
+   press Enter, new task appears in the (still-scrolled) list below).
+4. Repeat on desktop three-column layout — no visual regression to the
+   column's existing look when the list is short enough not to scroll.
+5. Once Task 3 ships: confirm the virtual Starred list's header (star icon +
+   "Starred" title, no add-row per that task's spec) also sticks correctly
+   with no extra code — it inherits this from shared `TasksPane` usage.
+6. `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test`; version
+   bump; draft PR.
+
+---
+
+<!-- Add Task 7, 8, … above this line as new numbered sections, and keep the
      index table at the top in sync. -->
