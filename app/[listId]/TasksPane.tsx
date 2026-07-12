@@ -368,14 +368,36 @@ export default function TasksPane({
       return;
     }
     // Guards the same invariant as TaskItem's dragDisabled prop (which hides
-    // the handle) — belt and suspenders, since old/newIndex below are looked
-    // up against `tasks` (manual order), not the sorted `activeVisible`/
-    // `completed` arrays dnd-kit actually rendered handles for.
+    // the handle).
     if (sortBy !== 'manual') return;
     if (!over || a.id === over.id) return;
-    const oldIndex = tasks.findIndex((t) => t.id === a.id);
-    const newIndex = tasks.findIndex((t) => t.id === over.id);
-    const ids = arrayMove(tasks, oldIndex, newIndex).map((t) => t.id);
+    // dnd-kit's SortableContext (below) is seeded with activeVisible's ids —
+    // the actually-rendered order, which pinDueTodayAndOverdue always
+    // reorders (pinning due-today/overdue tasks first) regardless of sortBy,
+    // even 'manual'. active/over indices from dnd-kit are positions within
+    // THAT array, not raw `tasks`'s manual order — computing old/newIndex
+    // against `tasks` directly (as this used to) silently desyncs the two
+    // whenever any visible task is pinned, producing a no-op or wrong swap.
+    // This was a latent bug even before whole-row drag shipped; it just
+    // never got exercised, since the only way to drag before then was via
+    // the (separately broken, invisible-on-hover) handle.
+    const oldVisibleIndex = activeVisible.findIndex((t) => t.id === a.id);
+    const newVisibleIndex = activeVisible.findIndex((t) => t.id === over.id);
+    if (oldVisibleIndex === -1 || newVisibleIndex === -1) return;
+    const reorderedVisible = arrayMove(activeVisible, oldVisibleIndex, newVisibleIndex);
+    // Splice the reordered visible/active subset back into the full task
+    // list, preserving the relative position of everything dnd-kit never
+    // saw (completed tasks; tasks hidden by the current filter) — walk
+    // `tasks` in its original order, substituting each visible-subset
+    // member's id with the next id from `reorderedVisible`, in order.
+    const visibleIds = new Set(activeVisible.map((t) => t.id));
+    let vi = 0;
+    const ids = tasks.map((t) => {
+      if (!visibleIds.has(t.id)) return t.id;
+      const next = reorderedVisible[vi];
+      vi += 1;
+      return next?.id ?? t.id;
+    });
     startTransition(async () => {
       applyTaskAction({ type: 'reorder', ids });
       await reorderTasks(listId, ids);

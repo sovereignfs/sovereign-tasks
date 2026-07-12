@@ -156,6 +156,21 @@
   /* The drag is JS-driven (dnd-kit), so the browser must not treat a press on
      the handle as a scroll/pan gesture that would fight it. */
   touch-action: none;
+  /* Without this, the handle never visibly appeared even on hover — opacity
+     going to 1 doesn't matter when a later sibling paints over it. This
+     button is declared *before* .rowInner in the markup, and .rowInner has
+     an opaque (inherited) background with no z-index of its own on desktop
+     (only gets z-index:1 under the mobile media query below) — two
+     position:relative/absolute siblings with no z-index difference paint in
+     DOM order, so .rowInner (later, opaque) always covered this regardless
+     of its own opacity. An explicit z-index here, higher than every other
+     value used in this row's stacking context (.rowInner's mobile z-index:1,
+     .swipeEdgeZone's 2, .listOptionsBtn's 3), guarantees it paints on top in
+     both breakpoints. This was a pre-existing bug, not introduced by the
+     recent drag-reorder work — just never noticed before, since dragging
+     only became a discoverable, expected desktop interaction once row-level
+     drag shipped alongside it. */
+  z-index: 4;
 }
 
 /* On pure-touch devices the handle is never revealed (hover/focus only, below)
@@ -354,6 +369,15 @@
      wrapper offsetting it — nudge it the same 3px to match the icon's
      visual edge, not just the padding boundary. */
   margin-right: 3px;
+  /* .count (12px) sits in the same flex-centered row as .listTitle (15px,
+     see .rowInner) — box-centering two different font sizes against each
+     other lines up their geometric middles exactly, but a baseline sits
+     below a font's own vertical middle, so the smaller text's baseline
+     still reads as sitting visibly higher than the larger text's. Nudge
+     down slightly to compensate — verified against real rendering, not just
+     computed layout (a bounding-box check alone reports this row as already
+     "aligned", since box-centering is precisely what it *is* doing). */
+  margin-top: 1px;
 }
 
 /* Mobile-only explicit affordance for rename/colour (D1, mobile design-system

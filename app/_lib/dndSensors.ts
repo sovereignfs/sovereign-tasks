@@ -5,13 +5,8 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type {
-  MouseEvent as ReactMouseEvent,
-  TouchEvent as ReactTouchEvent,
-  TouchEventHandler,
-} from 'react';
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 
 /** Plain pointer drag (desktop, handle-initiated) — unchanged from before the
  *  touch split, kept as a named constant since it's the tuning knob. */
@@ -61,24 +56,6 @@ class TouchSensor extends LibTouchSensor {
       handler: ({ nativeEvent: event }: ReactTouchEvent) => shouldHandleDndEvent(event.target),
     },
   ];
-}
-
-/**
- * Extracts just the touch activator from `useSortable`'s `listeners`, typed
- * for a plain `<div onTouchStart>` — for spreading onto a row container so a
- * long-press anywhere on it (not just the handle) can lift it, without also
- * forwarding `onMouseDown` (which would let a mouse-drag start from the row
- * on a narrow desktop window — see the two call sites for the full
- * reasoning). Returns undefined when `enabled` is false or there's nothing
- * to forward, so callers can spread it unconditionally.
- */
-export function touchOnlyListeners(
-  listeners: SyntheticListenerMap | undefined,
-  enabled: boolean,
-): { onTouchStart: TouchEventHandler<HTMLElement> } | undefined {
-  const onTouchStart = listeners?.onTouchStart;
-  if (!enabled || !onTouchStart) return undefined;
-  return { onTouchStart: onTouchStart as TouchEventHandler<HTMLElement> };
 }
 
 /**

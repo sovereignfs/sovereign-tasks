@@ -156,8 +156,9 @@ dnd-kit's auto-incrementing `aria-describedby` IDs aren't guaranteed to match
 between SSR and hydration when multiple `DndContext`s are mounted (which this
 plugin always has: one for lists, one for tasks).
 
-**Mobile: long-press anywhere on the row also lifts it** (v0.12), not just the
-handle — `app/_lib/dndSensors.ts`'s `useReorderSensors()` swaps the old single
+**Long-press/press-and-drag anywhere on the row lifts it** (v0.12, extended to
+desktop mouse in v0.12.2 — see below), not just the handle —
+`app/_lib/dndSensors.ts`'s `useReorderSensors()` swaps the old single
 `PointerSensor` for `MouseSensor` (`distance: 8`) + `TouchSensor`
 (`delay: 300, tolerance: 8`) + `KeyboardSensor`. Both custom sensor subclasses
 refuse to activate when the touch/click originated inside an element marked
@@ -168,26 +169,54 @@ specifically, a touch lift released back in place (delta < 12px) toggles
 bulk-select instead of reordering — see "Keyboard shortcuts and bulk select"
 below.
 
-**List rows vs. task rows forward listeners differently** (v0.12.1) — a
-deliberate divergence, not an oversight:
+**Both row types forward `listeners` onto the whole row, unconditionally, on
+every breakpoint** (v0.12.2) — `ListSidebar.tsx`'s `ListItem` spreads them
+onto `.rowInner`; `TaskItem.tsx` spreads them onto `.row` whenever
+`!dragDisabled`. Press-and-drag from anywhere on a row works via mouse or
+touch on both. This was originally mobile/touch-only, keeping desktop
+mouse-drag handle-only — but the ~12px hover-revealed handle (opacity 0 until
+`:hover`) turned out too easy to miss entirely on desktop for both row types,
+and since `MouseSensor`'s own `distance: 8` activation constraint already
+keeps an ordinary click (rename, navigate, checkbox, open the colour picker)
+from being mistaken for a drag, there's no narrow-desktop-window trade-off to
+guard against — `isMobile` gating was never actually load-bearing for safety,
+just an initial (overly conservative) scope choice.
 
-- **`ListSidebar.tsx`'s `ListItem`** spreads `listeners` onto `.rowInner`
-  *unconditionally*, on every breakpoint — press-and-drag from anywhere on a
-  list row works via mouse or touch. The ~12px hover-revealed handle
-  (opacity 0 until `:hover`) turned out too easy to miss entirely on desktop;
-  since `MouseSensor`'s own `distance: 8` activation constraint already keeps
-  an ordinary click (rename, navigate, open the colour picker) from being
-  mistaken for a drag, there's no narrow-desktop-window trade-off to guard
-  against the way task rows have.
-- **`TaskItem.tsx`** still forwards `onTouchStart` only, and only when
-  `isMobile` (via `touchOnlyListeners()`), keeping desktop mouse-drag
-  handle-only same as before this feature. `isMobile` is a viewport check,
-  not an input-type check, so forwarding full `listeners` there would let a
-  mouse-drag start from the row on a narrow *desktop* window — task rows pack
-  more competing controls into less space (checkbox, star, subtask ring,
-  swipe zone) than a list row does, so this one keeps the narrower, more
-  conservative behavior. Revisit if the same discoverability complaint comes
-  up for task rows.
+**The handle's own hover-reveal had a separate, pre-existing bug**: it never
+actually became visible on hover, on either row type, at any point before
+v0.12.2 — `.dragHandle`/`.dragHandle` (ListSidebar/TaskItem) sits *before*
+`.rowInner`/`.row` in the DOM, and that later sibling has an opaque
+(inherited) background with no `z-index` of its own on desktop; two
+positioned siblings with no z-index difference paint in DOM order, so the
+opaque row always covered the handle regardless of its own `opacity`. Fixed
+with an explicit `z-index: 4` on both `.dragHandle` rules, higher than every
+other value in that row's stacking context. Not a regression from this
+feature — just never noticed until whole-row drag made desktop dragging a
+discoverable, expected interaction worth actually looking for the handle.
+
+**Task reorder must compute indices against `activeVisible`, never raw
+`tasks`** — `TasksPane.tsx`'s `handleDragEnd`. dnd-kit's `SortableContext` for
+task rows is seeded with `activeVisible.map(t => t.id)` — the actually
+*rendered* order — and `activeVisible` always runs `tasks` through
+`pinDueTodayAndOverdue` on top of `sortTasks`, even under `sortBy: 'manual'`
+(due-today/overdue tasks are pinned first regardless of sort mode). `active`/
+`over` from a `DragEndEvent` are positions within that rendered array, not
+raw `tasks`'s own manual order — computing `oldIndex`/`newIndex` directly
+against `tasks` (the original implementation) silently desyncs the two
+whenever any visible task is pinned, producing a no-op or a wrong swap. This
+was a latent bug present before whole-row drag ever shipped; it just never
+got exercised, since the only way to drag before v0.12.2 was via the
+(separately broken, invisible) handle. Fixed by computing indices against
+`activeVisible`, reordering that subset, then re-splicing it back into the
+full `tasks` array by walking `tasks` in its original order and substituting
+each visible-subset member's id with the next id from the reordered subset —
+this preserves the position of everything dnd-kit never saw (completed
+tasks, tasks hidden by the current filter). One consequence worth knowing:
+dragging a pinned (due-today/overdue) task, or dragging *relative to* one,
+can look like a no-op — pinning always wins the *rendered* position
+regardless of the new manual order underneath it, so the visible list may
+not change even though the persisted order did. This is correct, expected
+behavior, not a bug to chase.
 
 ## Recurrence
 
@@ -334,7 +363,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.12.1**
+Current version: **0.12.2**
 
 ## Running locally
 
