@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useOptimistic, useRef, useState, useTransition } from 'react';
 import { deleteTask, toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
-import { touchOnlyListeners } from '../_lib/dndSensors';
 import { summaryLabel } from '../_lib/recurrence';
 import { useIsMobile } from '../_lib/useIsMobile';
 import type { TaskRow } from '../_lib/types';
@@ -116,12 +115,19 @@ export default function TaskItem({
     disabled: dragDisabled,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
-  // Mobile only, and only when a reorder is actually possible (dragDisabled
-  // hides the handle and disables useSortable in the same cases): let a
-  // long-press anywhere on the row lift it — see touchOnlyListeners' own doc
-  // comment for why only the touch activator is forwarded. The handle
-  // itself keeps the full `listeners` below, unchanged.
-  const rowTouchListeners = touchOnlyListeners(listeners, isMobile && !dragDisabled);
+  // Whenever a reorder is actually possible (dragDisabled hides the handle
+  // and disables useSortable in the same cases): let a press-and-drag
+  // anywhere on the row lift it, on every breakpoint — same reasoning as
+  // ListSidebar's identical row-forwarding (see that component's own
+  // comment): the hover-revealed handle is easy to miss, and MouseSensor's
+  // own 8px activation distance already keeps a plain click from being
+  // mistaken for a drag, so forwarding the full `listeners` object here
+  // carries no narrow-desktop-window risk. On mobile this is still the
+  // touch long-press lift (TouchSensor's delay/tolerance own that); on
+  // mouse it's a plain click-and-drag. The handle itself keeps the full
+  // `listeners` below too, unchanged — both remain valid ways to start the
+  // same drag.
+  const rowDragListeners = dragDisabled ? undefined : listeners;
 
   // Optimistic completion: the checkbox flips instantly on tap instead of
   // waiting on toggleComplete's DB round trip (subtask cascade + main update
@@ -292,7 +298,7 @@ export default function TaskItem({
           className={styles.row}
           style={{ transform: swipeOpen ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : undefined }}
           onClickCapture={handleRowClickCapture}
-          {...rowTouchListeners}
+          {...rowDragListeners}
         >
         {/* data-no-dnd: Checkbox doesn't forward arbitrary props to its own
             root, so the exclusion is marked on this wrapper instead — a
