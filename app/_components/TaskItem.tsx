@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useOptimistic, useRef, useState, useTransition } from 'react';
 import { deleteTask, toggleComplete } from '../_lib/actions';
 import { formatDueDate, isOverdue } from '../_lib/date';
+import { listDotColor } from '../_lib/colors';
 import { summaryLabel } from '../_lib/recurrence';
 import { useIsMobile } from '../_lib/useIsMobile';
 import type { TaskRow } from '../_lib/types';
@@ -59,6 +60,16 @@ interface Props {
    * disabled otherwise.
    */
   dragDisabled?: boolean;
+  /** Renders a small source-list badge (colour dot + list name) next to the
+   *  due-date row — only set by the virtual "Starred" view (TSK-28), where
+   *  rows are aggregated across lists and would otherwise lose that context. */
+  showListBadge?: boolean;
+  listTitle?: string;
+  listColor?: string | null;
+  /** Overrides the detail link's base path (default `/tasks/${task.listId}`)
+   *  so the Starred view's detail links stay in `/tasks/starred?task=…`
+   *  instead of jumping to the task's own list. */
+  detailBasePath?: string;
 }
 
 export default function TaskItem({
@@ -74,6 +85,10 @@ export default function TaskItem({
   onSwipeOpen,
   onSwipeClose,
   dragDisabled = false,
+  showListBadge = false,
+  listTitle,
+  listColor,
+  detailBasePath,
 }: Props) {
   const isMobile = useIsMobile();
   const [expanded, setExpanded] = useState(false);
@@ -144,7 +159,7 @@ export default function TaskItem({
   // Uses the optimistic value (not task.completedAt) so a just-checked task's
   // overdue badge also clears immediately rather than lingering until refresh.
   const overdue = !isComplete && isOverdue(task.dueDate, null);
-  const detailHref = `/tasks/${task.listId}?task=${task.id}`;
+  const detailHref = `${detailBasePath ?? `/tasks/${task.listId}`}?task=${task.id}`;
 
   function handleToggle(checked: boolean) {
     startTransition(async () => {
@@ -329,6 +344,16 @@ export default function TaskItem({
             {task.title}
           </span>
           {task.notes && <span className={styles.note}>{task.notes}</span>}
+          {showListBadge && listTitle && (
+            <span className={styles.listBadge}>
+              <span
+                className={styles.listBadgeDot}
+                style={{ background: listDotColor(listColor) }}
+                aria-hidden
+              />
+              {listTitle}
+            </span>
+          )}
           {(task.dueDate || task.recurrenceRule) && (
             <span className={styles.dueRow}>
               {task.dueDate && (

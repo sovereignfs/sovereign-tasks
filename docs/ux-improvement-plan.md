@@ -11,7 +11,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | --- | --- | --- | --- |
 | 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | shipped |
 | 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | shipped |
-| 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | planned |
+| 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | shipped |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
 | 5 | JSON export/import (account-level data portability) | sovereign-tasks | planned |
 | 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | planned |
@@ -286,9 +286,9 @@ No docs-parity impact (no manifest/SDK/env changes). No DB/API changes.
 
 ## Task 3 — Virtual "Starred" list (all prioritized tasks in one view)
 
-**Status:** planned
-**Repo:** sovereign-tasks. Branch type: `feat/` (minor bump). Proposed
-requirement id: **TSK-28** (next free; builds on TSK-26 star/favourite —
+**Status:** shipped — implemented on `feat/virtual-starred-list`.
+**Repo:** sovereign-tasks. Branch type: `feat/` (minor bump). Assigned
+requirement id: **TSK-28** (builds on TSK-26 star/favourite —
 add to `roadmap.md` when implemented).
 
 ### Problem

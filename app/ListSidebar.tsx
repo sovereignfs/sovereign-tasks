@@ -20,10 +20,16 @@ import { LIST_SWATCHES, listDotColor } from './_lib/colors';
 import { useReorderSensors } from './_lib/dndSensors';
 import { useIsMobile } from './_lib/useIsMobile';
 import type { ListRow } from './_lib/types';
+import { STARRED_LIST_ID } from './_lib/virtualLists';
 import styles from './ListSidebar.module.css';
 
 interface Props {
   lists: ListRow[];
+  /** Count of active starred tasks across every list — drives the pinned
+   *  "Starred" row's badge (TSK-28). Threaded down from layout.tsx's own
+   *  countStarredTasks() call rather than fetched here, since this is a
+   *  client component and every route (not just /tasks/starred) renders it. */
+  starredCount: number;
 }
 
 type ListAction =
@@ -50,7 +56,7 @@ function listsReducer(state: ListRow[], action: ListAction): ListRow[] {
   }
 }
 
-export default function ListSidebar({ lists: initialLists }: Props) {
+export default function ListSidebar({ lists: initialLists, starredCount }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [lists, applyListAction] = useOptimistic(initialLists, listsReducer);
@@ -252,6 +258,31 @@ export default function ListSidebar({ lists: initialLists }: Props) {
           />
         </div>
       )}
+
+      {/* Pinned "Starred" row (TSK-28) — rendered outside the DndContext/
+          SortableContext below since it's not sortable, not swipeable, and
+          has no rename/colour/delete affordances; a plain, always-first
+          entry. */}
+      <ul className={styles.list}>
+        <li
+          className={[
+            styles.item,
+            pathname === `/tasks/${STARRED_LIST_ID}` ? styles.active : '',
+          ].join(' ')}
+        >
+          <div className={styles.rowInner}>
+            <span className={styles.starredDot} aria-hidden>
+              ★
+            </span>
+            <Link href={`/tasks/${STARRED_LIST_ID}`} className={styles.link}>
+              <span className={styles.listTitle}>Starred</span>
+            </Link>
+            <span className={styles.trail}>
+              {starredCount > 0 && <span className={styles.count}>{starredCount}</span>}
+            </span>
+          </div>
+        </li>
+      </ul>
 
       <DndContext
         id="lists-dnd"

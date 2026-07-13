@@ -9,6 +9,8 @@ import styles from '../layout.module.css';
 
 interface Props {
   lists: ListRow[];
+  /** Count of active starred tasks — see ListSidebar's own doc comment. */
+  starredCount: number;
   children: ReactNode;
 }
 
@@ -28,13 +30,13 @@ interface Props {
  * carousel uses purely as a signal to re-fetch its active slide — see
  * MobileTasksCarousel's own doc comment.
  */
-export default function MobileAwareShell({ lists, children }: Props) {
+export default function MobileAwareShell({ lists, starredCount, children }: Props) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
     return (
       <div className={styles.shell} data-plugin-fullbleed>
-        <MobileTasksCarousel lists={lists} refreshSignal={children} />
+        <MobileTasksCarousel lists={lists} starredCount={starredCount} refreshSignal={children} />
       </div>
     );
   }
@@ -42,7 +44,7 @@ export default function MobileAwareShell({ lists, children }: Props) {
   return (
     <div className={styles.shell} data-plugin-fullbleed>
       <aside className={styles.sidebar}>
-        <ListSidebar lists={lists} />
+        <ListSidebar lists={lists} starredCount={starredCount} />
       </aside>
       <main className={styles.content}>{children}</main>
     </div>
