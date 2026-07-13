@@ -97,7 +97,7 @@ async function sendMorningDigest(
   if (summary === null) return; // nothing due — claim still consumed, quiet day
 
   await sdk.notifications.send(
-    { recipientUserId: pref.userId, title: summary, url: '/tasks', icon: 'calendar' },
+    { recipientUserId: pref.userId, title: summary, url: '/tasks' },
     ctx.headers,
   );
 }
@@ -153,7 +153,6 @@ async function sendDueTimeReminders(
         title: task.title,
         body: `Due at ${task.dueTime ?? ''}`,
         url: `/tasks/${task.listId}?task=${task.id}`,
-        icon: 'calendar',
       },
       ctx.headers,
     );
