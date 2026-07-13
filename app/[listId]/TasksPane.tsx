@@ -29,10 +29,15 @@ import styles from './TasksPane.module.css';
 
 type Filter = 'all' | 'active' | 'overdue';
 
+/** initialTasks' actual shape — plain TaskRow for a real list, decorated with
+ *  the source list's title/colour when virtualList (TSK-28's Starred view;
+ *  see getStarredTasks). Optional fields keep both shapes assignable. */
+type TaskWithListMeta = TaskRow & { listTitle?: string; listColor?: string | null };
+
 interface Props {
   list: ListRow;
   lists: ListRow[];
-  initialTasks: TaskRow[];
+  initialTasks: TaskWithListMeta[];
   showCompleted: boolean;
   listId: string;
   selectedTaskId: string | null;
@@ -45,15 +50,25 @@ interface Props {
    * pane with fresh server props within the same transition.
    */
   onTaskFieldPatch?: (taskId: string, patch: Partial<TaskRow>) => void;
+  /**
+   * Renders the virtual "Starred" view (TSK-28) instead of a real list:
+   * header/menu strip to Sort by only (no rename/colour/delete-list/
+   * delete-completed), no add-task row, drag-reorder always off (no manual
+   * order across lists — Sort excludes Manual, defaults to Due date), rows
+   * show a source-list badge, detail links stay in `/tasks/starred?task=…`,
+   * and bulk select is unavailable (bulkDeleteTasks/bulkMoveTasks are scoped
+   * to a single owning list, which a cross-list aggregation doesn't have).
+   */
+  virtualList?: 'starred';
 }
 
 // Elements that should swallow single-letter shortcuts because the user is
 // typing into them (TSK-19 — shortcuts only fire when focus isn't in a field).
 const TYPING_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
-type TaskAction = { type: 'add'; task: TaskRow } | { type: 'reorder'; ids: string[] };
+type TaskAction = { type: 'add'; task: TaskWithListMeta } | { type: 'reorder'; ids: string[] };
 
-function tasksReducer(state: TaskRow[], action: TaskAction): TaskRow[] {
+function tasksReducer(state: TaskWithListMeta[], action: TaskAction): TaskWithListMeta[] {
   switch (action.type) {
     case 'add':
       return [...state, action.task];
@@ -78,6 +93,7 @@ export default function TasksPane({
   listId,
   selectedTaskId,
   onTaskFieldPatch,
+  virtualList,
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -110,9 +126,13 @@ export default function TasksPane({
     if (width !== null) setRenameInputWidth(width + 4);
   }, [renaming, renameTitle]);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortBy>('manual');
+  // The virtual Starred view has no cross-list manual order to fall back on —
+  // Manual is excluded from its Sort options (see sortOptions below) and Due
+  // date is the more useful default there.
+  const [sortBy, setSortBy] = useState<SortBy>(virtualList ? 'dueDate' : 'manual');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteCompletedOpen, setDeleteCompletedOpen] = useState(false);
+  const sortOptions = virtualList ? SORT_OPTIONS.filter((o) => o.value !== 'manual') : SORT_OPTIONS;
 
   // Whether Filter fits inline in the title row (next to the options menu)
   // instead of folding into that menu. Measured against a hidden "shadow"
@@ -368,8 +388,10 @@ export default function TasksPane({
       return;
     }
     // Guards the same invariant as TaskItem's dragDisabled prop (which hides
-    // the handle).
-    if (sortBy !== 'manual') return;
+    // the handle). The virtual Starred view has no manual order at all — its
+    // Sort options exclude 'manual', but this is a defensive belt-and-braces
+    // check against that invariant rather than relying on it alone.
+    if (virtualList || sortBy !== 'manual') return;
     if (!over || a.id === over.id) return;
     // dnd-kit's SortableContext (below) is seeded with activeVisible's ids —
     // the actually-rendered order, which pinDueTodayAndOverdue always
@@ -459,31 +481,48 @@ export default function TasksPane({
         ] satisfies MenuEntry[])
       : []),
     { type: 'label', label: 'Sort by' },
-    ...SORT_OPTIONS.map(
+    ...sortOptions.map(
       (opt): MenuEntry => ({
         label: opt.label,
         checked: sortBy === opt.value,
         onSelect: () => setSortBy(opt.value),
       }),
     ),
-    { type: 'separator' },
-    ...(completed.length > 0
+    // Rename/colour/delete-list/delete-completed are all real-list-only
+    // operations the virtual Starred view has no meaning for — it owns no
+    // list row and no tasks of its own to delete.
+    ...(!virtualList
       ? ([
-          {
-            label: 'Delete completed tasks',
-            destructive: true,
-            onSelect: () => setDeleteCompletedOpen(true),
-          },
+          { type: 'separator' },
+          ...(completed.length > 0
+            ? ([
+                {
+                  label: 'Delete completed tasks',
+                  destructive: true,
+                  onSelect: () => setDeleteCompletedOpen(true),
+                },
+              ] satisfies MenuEntry[])
+            : []),
+          { label: 'Delete list', destructive: true, onSelect: () => setDeleteOpen(true) },
         ] satisfies MenuEntry[])
       : []),
-    { label: 'Delete list', destructive: true, onSelect: () => setDeleteOpen(true) },
   ];
 
   return (
     <div className={styles.pane} suppressHydrationWarning>
       <header className={styles.header}>
         <div className={styles.titleRow} ref={titleRowRef}>
-          <span className={styles.dot} style={{ background: listDotColor(list.color) }} aria-hidden />
+          {virtualList ? (
+            <span className={styles.starredIcon} aria-hidden>
+              ★
+            </span>
+          ) : (
+            <span
+              className={styles.dot}
+              style={{ background: listDotColor(list.color) }}
+              aria-hidden
+            />
+          )}
           {renaming ? (
             <input
               ref={renameInputRef}
@@ -515,7 +554,7 @@ export default function TasksPane({
             <h1
               className={styles.title}
               onClick={(e) => {
-                if (!isMobile && e.detail === 2) startRename();
+                if (!virtualList && !isMobile && e.detail === 2) startRename();
               }}
             >
               {list.title}
@@ -580,7 +619,13 @@ export default function TasksPane({
           }}
           aria-hidden
         >
-          <span className={styles.dot} style={{ background: listDotColor(list.color) }} />
+          {virtualList ? (
+            <span className={styles.starredIcon} aria-hidden>
+              ★
+            </span>
+          ) : (
+            <span className={styles.dot} style={{ background: listDotColor(list.color) }} />
+          )}
           <h1 className={styles.title}>{list.title}</h1>
           <span className={styles.count}>
             {active.length} {active.length === 1 ? 'task' : 'tasks'}
@@ -629,21 +674,24 @@ export default function TasksPane({
         destructive
       />
 
-      <div className={styles.addRow}>
-        <span className={styles.addPlus} aria-hidden>
-          +
-        </span>
-        <input
-          ref={addInputRef}
-          className={styles.addInput}
-          placeholder="Add a task and press Enter…"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleAddTask();
-          }}
-        />
-      </div>
+      {/* A new task needs an owning list — the virtual Starred view has none. */}
+      {!virtualList && (
+        <div className={styles.addRow}>
+          <span className={styles.addPlus} aria-hidden>
+            +
+          </span>
+          <input
+            ref={addInputRef}
+            className={styles.addInput}
+            placeholder="Add a task and press Enter…"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddTask();
+            }}
+          />
+        </div>
+      )}
 
       <DndContext
         id="tasks-dnd"
@@ -665,7 +713,7 @@ export default function TasksPane({
                 selected={task.id === selectedTaskId}
                 keyFocused={task.id === focusedId}
                 bulkSelected={selectedIds.has(task.id)}
-                onBulkToggle={toggleBulkSelect}
+                onBulkToggle={virtualList ? undefined : toggleBulkSelect}
                 onMutated={refresh}
                 onFieldPatch={onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined}
                 swipeOpen={swipeOpenTaskId === task.id}
@@ -673,16 +721,22 @@ export default function TasksPane({
                 onSwipeClose={() =>
                   setSwipeOpenTaskId((id) => (id === task.id ? null : id))
                 }
-                dragDisabled={sortBy !== 'manual'}
+                dragDisabled={!!virtualList || sortBy !== 'manual'}
+                showListBadge={!!virtualList}
+                listTitle={task.listTitle}
+                listColor={task.listColor}
+                detailBasePath={virtualList ? '/tasks/starred' : undefined}
               />
             ))}
             {activeVisible.length === 0 && (
               <p className={styles.empty}>
-                {filter === 'overdue'
-                  ? 'Nothing overdue.'
-                  : tasks.length === 0
-                    ? 'No tasks yet — type above and press Enter to add one.'
-                    : 'All done! Completed tasks are below.'}
+                {virtualList
+                  ? 'No starred tasks — tap the star on a task to add it here.'
+                  : filter === 'overdue'
+                    ? 'Nothing overdue.'
+                    : tasks.length === 0
+                      ? 'No tasks yet — type above and press Enter to add one.'
+                      : 'All done! Completed tasks are below.'}
               </p>
             )}
           </div>
@@ -710,7 +764,7 @@ export default function TasksPane({
                   showCompleted
                   selected={task.id === selectedTaskId}
                   bulkSelected={selectedIds.has(task.id)}
-                  onBulkToggle={toggleBulkSelect}
+                  onBulkToggle={virtualList ? undefined : toggleBulkSelect}
                   onMutated={refresh}
                   onFieldPatch={onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined}
                   swipeOpen={swipeOpenTaskId === task.id}
@@ -718,7 +772,11 @@ export default function TasksPane({
                   onSwipeClose={() =>
                     setSwipeOpenTaskId((id) => (id === task.id ? null : id))
                   }
-                  dragDisabled={sortBy !== 'manual'}
+                  dragDisabled={!!virtualList || sortBy !== 'manual'}
+                  showListBadge={!!virtualList}
+                  listTitle={task.listTitle}
+                  listColor={task.listColor}
+                  detailBasePath={virtualList ? '/tasks/starred' : undefined}
                 />
               ))}
             </div>
@@ -726,7 +784,7 @@ export default function TasksPane({
         </div>
       )}
 
-      {selectedIds.size > 0 && (
+      {!virtualList && selectedIds.size > 0 && (
         <BulkActionBar
           count={selectedIds.size}
           lists={lists}

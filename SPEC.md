@@ -163,6 +163,7 @@ selection surface. Do not call Console/admin user routes.
 | TSK-21 | Bulk select tasks and move selected to another list.                                    |
 | TSK-26 | Star/favourite a task (toggle on the row and in the detail pane). Added ahead of phasing. |
 | TSK-27 | Move a single task to a different list from the detail pane's List field. Subtasks move with their parent. Added ahead of phasing — distinct from TSK-21's bulk move. |
+| TSK-28 | A virtual "Starred" list, pinned first on the lists surface, aggregating every starred task across the user's lists in one view (sorted by due date). Not a real list — owns no `tasks_lists` row and no tasks; each task always remains in (and displays) its source list. No add-task, drag-reorder, rename/colour/delete, or bulk select in this view. Added ahead of phasing; builds on TSK-26. |
 
 ### v0.4 — Recurrence
 

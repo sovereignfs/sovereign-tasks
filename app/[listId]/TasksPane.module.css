@@ -42,6 +42,17 @@
   flex-shrink: 0;
 }
 
+/* Replaces .dot for the virtual "Starred" view header (TSK-28) — there's no
+   list colour to show, so a star glyph fills the same slot instead. Matches
+   StarButton's own plain-glyph approach rather than pulling in a DS icon that
+   doesn't exist yet (no "star" name in @sovereignfs/ui's Icon set). */
+.starredIcon {
+  flex-shrink: 0;
+  font-size: var(--sv-font-size-md);
+  line-height: 1;
+  color: var(--sv-color-text-primary);
+}
+
 .title {
   /* No flex-grow — the title should sit right next to .count (like it did
      before the header menu existed), not stretch to soak up all the row's

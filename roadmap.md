@@ -42,6 +42,7 @@ completing this milestone.
 | TSK-21 | Bulk select + move to another list | ✅ |
 | TSK-26 | Star/favourite a task (added ahead of phasing) | ✅ |
 | TSK-27 | Move a single task to a different list from the detail pane (added ahead of phasing; distinct from TSK-21's bulk move) | ✅ |
+| TSK-28 | Virtual "Starred" list — aggregates every starred task across lists in one pinned view (added ahead of phasing; builds on TSK-26) | ✅ |
 
 Keyboard shortcuts (scoped to the task-list pane, skipped while typing in a
 field): `n` focuses the add-task input, `j`/`k` (or Up/Down) move a keyboard
@@ -52,6 +53,19 @@ not an explicit "Select" mode button, since the row checkbox already means
 "mark complete" and this keeps that meaning unambiguous. A floating action bar
 appears with the selection count plus Move to list / Delete / Cancel; `Escape`
 also clears the selection.
+
+Starred (TSK-28) is a reserved pseudo-list id (`'starred'`, guaranteed not to
+collide with a real list's UUID) rendered as a pinned row above the sortable
+list sidebar and reachable at `/tasks/starred` (desktop) or a synthetic
+carousel slide right after the Lists index (mobile). It reuses `TasksPane` in
+a stripped-down "virtual" mode — no add-task row, no drag-reorder (no
+cross-list manual order exists), no rename/colour/delete-list, and no bulk
+select (`bulkDeleteTasks`/`bulkMoveTasks` are scoped to one owning list, which
+an aggregated view doesn't have) — rather than a separate component, so every
+other list behavior (filter, sort by due date/title/created, complete,
+un-star, open detail, move to another list from the detail pane) comes free
+and stays in sync. See `CLAUDE.md`'s "Drag reorder" and "Mobile shell"
+sections for how the underlying mechanisms this reuses work.
 
 ## v0.4 — Recurrence
 

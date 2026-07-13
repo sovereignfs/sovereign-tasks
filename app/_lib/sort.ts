@@ -17,7 +17,11 @@ export const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: 'title', label: 'Title (A-Z)' },
 ];
 
-export function sortTasks(tasks: TaskRow[], sortBy: SortBy): TaskRow[] {
+// Generic over T (not just TaskRow) so callers passing a decorated row type
+// (e.g. StarredTaskRow, which adds listTitle/listColor) keep those extra
+// fields on the sorted result instead of losing them to TaskRow's narrower
+// declared shape.
+export function sortTasks<T extends TaskRow>(tasks: T[], sortBy: SortBy): T[] {
   if (sortBy === 'manual') return tasks;
 
   const sorted = [...tasks];
@@ -57,9 +61,9 @@ export function sortTasks(tasks: TaskRow[], sortBy: SortBy): TaskRow[] {
  * next render — the same intentional "sort wins over a crossing drag"
  * behavior TasksPane already accepts for the date/dueDate/title sorts.
  */
-export function pinDueTodayAndOverdue(tasks: TaskRow[]): TaskRow[] {
-  const due: TaskRow[] = [];
-  const rest: TaskRow[] = [];
+export function pinDueTodayAndOverdue<T extends TaskRow>(tasks: T[]): T[] {
+  const due: T[] = [];
+  const rest: T[] = [];
   for (const t of tasks) {
     (isDueTodayOrOverdue(t.dueDate, t.completedAt) ? due : rest).push(t);
   }

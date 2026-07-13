@@ -24,3 +24,11 @@ export interface TaskRow {
   /** Unix epoch seconds. Only read by the client for the "Date" sort option. */
   createdAt: number;
 }
+
+/** A TaskRow decorated with its source list's title/colour — only produced by
+ *  getStarredTasks() for the virtual "Starred" view (TSK-28), which aggregates
+ *  tasks across lists and needs to show where each one actually lives. */
+export interface StarredTaskRow extends TaskRow {
+  listTitle: string;
+  listColor: string | null;
+}

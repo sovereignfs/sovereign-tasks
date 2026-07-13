@@ -327,6 +327,16 @@
   margin-right: var(--sv-space-2);
 }
 
+/* Pinned "Starred" row (TSK-28) — occupies the same slot as .dot/.dotButton
+   on a real list row, but there's no list colour to show. */
+.starredDot {
+  flex-shrink: 0;
+  margin-right: var(--sv-space-2);
+  font-size: var(--sv-font-size-xs);
+  line-height: 1;
+  color: var(--sv-color-text-primary);
+}
+
 /* Desktop only — the dot becomes an interactive trigger for the double-click
    colour popover (see ListItem), so it needs button reset + a visible focus
    affordance on top of .dot's plain visual styling. */

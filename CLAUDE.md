@@ -77,8 +77,9 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 **TSK-26 (star/favourite)** and **TSK-27 (move a task to a different list, from
 the detail pane)** shipped ahead of phasing alongside the three-column web home.
 **v0.4 (recurrence)** shipped out of order too, ahead of v0.3's remaining
-keyboard-shortcut/bulk-action items, which followed in their own branch — see
-`roadmap.md` for per-requirement status.
+keyboard-shortcut/bulk-action items, which followed in their own branch.
+**TSK-28 (virtual "Starred" list)** shipped ahead of phasing too, building on
+TSK-26 — see `roadmap.md` for per-requirement status.
 
 **Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
@@ -126,6 +127,14 @@ Console admin user routes as a workaround.
   and `TasksPane`'s `handleDragEnd` no-ops in that state.
 - **Mobile (≤640px) is a different UI, not a squeeze of the desktop one** —
   see "Mobile shell" below.
+- **Starred is virtual — never a `tasks_lists` row** (TSK-28). `STARRED_LIST_ID`
+  (`app/_lib/virtualLists.ts`) is a reserved pseudo-id (`'starred'`), safe
+  because real list ids are UUIDs. It's rendered as a pinned sidebar row and a
+  route (`/tasks/starred` desktop, a synthetic carousel slide on mobile) that
+  reuse `TasksPane` in a stripped-down `virtualList="starred"` mode — never a
+  forked component — so real-list behavior (filter, sort, complete, detail,
+  move) stays in sync for free. Don't add a `tasks_lists` row, migration, or
+  per-list prefs for it.
 
 ### Views
 
@@ -363,7 +372,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.12.2**
+Current version: **0.13.0**
 
 ## Running locally
 

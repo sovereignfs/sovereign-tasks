@@ -260,6 +260,87 @@ export async function getTasks(listId: string) {
   }));
 }
 
+/**
+ * Every starred top-level task across every list the user owns, decorated
+ * with the source list's title/colour (TSK-28's virtual "Starred" view).
+ * Ordered by due date (nulls last), then creation time — matches the design
+ * doc's stated order, distinct from a real list's manual/sort-by order since
+ * there's no cross-list manual order to fall back on.
+ */
+export async function getStarredTasks() {
+  const { db, userId, tenantId } = await getContext();
+
+  const lists = await db
+    .select({ id: tasksLists.id, title: tasksLists.title, color: tasksLists.color })
+    .from(tasksLists)
+    .where(and(eq(tasksLists.tenantId, tenantId), eq(tasksLists.ownerId, userId)));
+  if (lists.length === 0) return [];
+  const listMap = new Map(lists.map((l) => [l.id, l]));
+  const listIds = [...listMap.keys()];
+
+  const [top, subs] = await Promise.all([
+    db
+      .select()
+      .from(tasksItems)
+      .where(
+        and(
+          eq(tasksItems.tenantId, tenantId),
+          eq(tasksItems.favorite, true),
+          isNull(tasksItems.parentId),
+          inArray(tasksItems.listId, listIds),
+        ),
+      ),
+    db
+      .select({ parentId: tasksItems.parentId, completedAt: tasksItems.completedAt })
+      .from(tasksItems)
+      .where(
+        and(
+          eq(tasksItems.tenantId, tenantId),
+          isNotNull(tasksItems.parentId),
+          inArray(tasksItems.listId, listIds),
+        ),
+      ),
+  ]);
+
+  const counts = new Map<string, { total: number; done: number }>();
+  for (const s of subs) {
+    if (!s.parentId) continue;
+    const c = counts.get(s.parentId) ?? { total: 0, done: 0 };
+    c.total += 1;
+    if (s.completedAt !== null) c.done += 1;
+    counts.set(s.parentId, c);
+  }
+
+  const decorated = top.map((t) => {
+    const list = listMap.get(t.listId);
+    return {
+      ...t,
+      subtaskCount: counts.get(t.id)?.total ?? 0,
+      subtaskDoneCount: counts.get(t.id)?.done ?? 0,
+      listTitle: list?.title ?? '',
+      listColor: list?.color ?? null,
+    };
+  });
+
+  decorated.sort((a, b) => {
+    if (a.dueDate === null && b.dueDate === null) return a.createdAt - b.createdAt;
+    if (a.dueDate === null) return 1;
+    if (b.dueDate === null) return -1;
+    if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    return a.createdAt - b.createdAt;
+  });
+
+  return decorated;
+}
+
+/** Count of active (incomplete) starred tasks — cheap enough to reuse
+ *  getStarredTasks() rather than a separate query; the sidebar row needs it
+ *  on every route, not just /tasks/starred itself. */
+export async function countStarredTasks() {
+  const tasks = await getStarredTasks();
+  return tasks.filter((t) => t.completedAt === null).length;
+}
+
 export async function getTask(taskId: string) {
   const { db, userId, tenantId } = await getContext();
   const rows = await db
