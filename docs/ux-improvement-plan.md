@@ -12,7 +12,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | shipped |
 | 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | shipped |
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | shipped |
-| 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
+| 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | shipped |
 | 5 | JSON export/import (account-level data portability) | sovereign-tasks | planned |
 | 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | planned |
 
@@ -420,7 +420,9 @@ decoration) alongside existing action tests; `isVirtualListId` trivially.
 
 ## Task 4 — Per-plugin push notification icon
 
-**Status:** planned
+**Status:** shipped — platform fix on `fix/per-plugin-push-icon`
+(`sovereignfs/sovereign`); this repo's own stale `icon: 'calendar'` follow-up
+removed on `fix/remove-stale-push-icon`.
 **Repo:** platform monorepo (`sovereignfs/sovereign`) — this is runtime/SDK
 shell chrome, not a tasks-plugin change. Surfaced by a tasks-plugin push
 notification (due-reminder) showing the platform's generic icon instead of
