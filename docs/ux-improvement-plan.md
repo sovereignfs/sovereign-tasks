@@ -9,8 +9,8 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 
 | # | Task | Repo | Status |
 | --- | --- | --- | --- |
-| 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | in progress |
-| 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | planned |
+| 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | shipped |
+| 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | shipped |
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | planned |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | planned |
 | 5 | JSON export/import (account-level data portability) | sovereign-tasks | planned |
@@ -20,7 +20,10 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 
 ## Task 1 — Long-press drag-reorder (lists page + task rows)
 
-**Status:** in progress — implemented on `feat/mobile-drag-reorder`, pending live verification and PR.
+**Status:** shipped — implemented and documented in the plugin's own `CLAUDE.md`
+("Drag reorder", v0.12/v0.12.2: whole-row `MouseSensor`/`TouchSensor` listeners,
+`data-no-dnd` exclusion, `activeVisible`-relative index fix). This plan's own
+status table was stale; corrected here.
 
 ### Problem
 
@@ -186,7 +189,7 @@ jsdom can't express TouchSensor timing meaningfully.
 
 ## Task 2 — Mark notifications read on click (bell panel)
 
-**Status:** planned
+**Status:** shipped — implemented on `fix/notification-mark-read-on-click`.
 **Repo:** platform monorepo (`sovereignfs/sovereign`) — this is runtime shell
 chrome, not a tasks-plugin change. It lives in this document because the tasks
 notification feature is what surfaced it. Branch type: `fix/` (runtime patch
