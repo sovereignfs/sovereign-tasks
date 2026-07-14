@@ -164,6 +164,7 @@ selection surface. Do not call Console/admin user routes.
 | TSK-26 | Star/favourite a task (toggle on the row and in the detail pane). Added ahead of phasing. |
 | TSK-27 | Move a single task to a different list from the detail pane's List field. Subtasks move with their parent. Added ahead of phasing — distinct from TSK-21's bulk move. |
 | TSK-28 | A virtual "Starred" list, pinned first on the lists surface, aggregating every starred task across the user's lists in one view (sorted by due date). Not a real list — owns no `tasks_lists` row and no tasks; each task always remains in (and displays) its source list. No add-task, drag-reorder, rename/colour/delete, or bulk select in this view. Added ahead of phasing; builds on TSK-26. |
+| TSK-29 | Account-level data portability (sv-RFC 0007 export/import, sv-RFC 0033 deletion) — no plugin-local UI; reached from Account → Export/Import my data. Export includes owned lists, items, views, and prefs; import is additive and remaps every plugin-owned id; deletion removes everything the user owns. Added ahead of phasing. |
 
 ### v0.4 — Recurrence
 
@@ -363,24 +364,26 @@ Candidate read-only contracts, after sv-RFC 0002 integration is ready:
 | `tasks.overdue`     | 1       | Overdue tasks visible to the current user.             |
 | `tasks.assignments` | 1       | Tasks assigned to the current user.                    |
 
-### Portability and deletion
+### Portability and deletion (TSK-29, shipped)
 
-Full Account-level portability depends on sv-RFC 0052 plugin hooks. Until that
-platform surface exists, Tasks should keep export/delete service boundaries
-clean internally but should not claim complete Account orchestration.
+Full Account-level portability, via sv-RFC 0007 (export/import) and sv-RFC
+0033 (deletion) — no plugin-local UI; reached from Account → Export my
+data / Import my data. See `app/_lib/portability.ts` and `CLAUDE.md`'s "Data
+portability" section for the implementation.
 
-Export includes lists owned by the user, memberships, tasks, subtasks,
-recurrence metadata, and per-user list preferences. Import restores owned lists
-additively and remaps list/task IDs.
+Export includes every list the user owns, its items (top-level and
+subtasks), views, and per-list prefs, plus the user's own (list-independent)
+notification prefs. Import restores additively (never wipes existing data)
+and remaps every plugin-owned id (lists, views, items, and — since it's a
+grouping value rather than a literal FK — recurring-series ids too), skipping
+any row whose cross-reference isn't actually part of the export instead of
+hard-failing.
 
-User deletion policy:
-
-- private lists owned only by the user are deleted;
-- shared lists where the user is a member remove the membership and unassign
-  tasks assigned to that user;
-- shared lists where the user is owner transfer ownership to the oldest joined
-  remaining member;
-- shared lists with no eligible remaining member are deleted.
+Deletion policy — v0.1's ownership model is single-owner only (v0.2
+collaboration is still blocked on `sdk.directory`), so this is simpler than a
+shared-list scheme would need: every list the user owns, and everything in
+it, is deleted; so is the user's own notification-prefs row. Revisit once
+v0.2 ships shared lists.
 
 ## UI
 

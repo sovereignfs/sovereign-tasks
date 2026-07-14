@@ -17,7 +17,7 @@ Spec: [SPEC.md](SPEC.md)
 | ------------- | ------------------------------ |
 | Plugin ID     | `fs.sovereign.tasks`           |
 | Route prefix  | `/tasks`                       |
-| Permissions   | `auth:session`, `db:readWrite`, `notifications:send` |
+| Permissions   | `auth:session`, `db:readWrite`, `notifications:send`, `data:export`, `data:import` |
 | Min platform  | `0.19.0`                       |
 | Table prefix  | `tasks_`                       |
 
@@ -78,8 +78,9 @@ Requirement IDs are stable — never renumber or reuse a TSK-* id.
 the detail pane)** shipped ahead of phasing alongside the three-column web home.
 **v0.4 (recurrence)** shipped out of order too, ahead of v0.3's remaining
 keyboard-shortcut/bulk-action items, which followed in their own branch.
-**TSK-28 (virtual "Starred" list)** shipped ahead of phasing too, building on
-TSK-26 — see `roadmap.md` for per-requirement status.
+**TSK-28 (virtual "Starred" list)** and **TSK-29 (account-level data
+portability)** shipped ahead of phasing too — TSK-28 builds on TSK-26; see
+`roadmap.md` for per-requirement status.
 
 **Do not start v0.2 work until `sdk.directory` is available (sv-RFC 0041).** Do not call
 Console admin user routes as a workaround.
@@ -262,6 +263,45 @@ helpers (rrule interop) for user-local scheduling decisions.** Editing the
 handler requires a dev-server restart (composed at generate time, imported at
 startup — no HMR).
 
+## Data portability (v0.14, TSK-29)
+
+`app/_lib/portability.ts` registers this plugin's export/import/delete
+participation in the platform's account-level data portability flow (RFC
+0007 export/import, RFC 0033 deletion) — reached from **Account → Export my
+data / Import my data**, not a plugin-local button. Registered from
+`app/layout.tsx` (best-effort, in-process, resets on restart — same pattern
+as every other request-scoped SDK registration). Mirrors
+`sovereign-plainwrite`'s own `app/_lib/portability.ts`.
+
+- **Export** (`exportTasksData`): every list the user owns, plus its items,
+  views, and user-list-prefs, plus the user's own (list-independent)
+  `tasksNotificationPrefs` row. Direct Drizzle queries scoped by
+  `tenantId`+`ownerId` — not the UI-shaped functions in `actions.ts`, which
+  add derived fields (`openCount`, subtask counts) that don't belong in a
+  storage format.
+- **Import** (`importTasksData`): **additive — never wipes existing data.**
+  Every plugin-owned id (`tasksLists.id`, `tasksViews.id`, `tasksItems.id`,
+  its own `parentId` for subtasks, and `seriesId` — not a literal FK, just a
+  grouping value, but remapped the same way so an imported recurring series
+  stays linked to itself) goes through `ctx.remapId()`, whose per-import
+  stability (same original id → same new id, every call) means no local id
+  map needs to be hand-maintained here. A row whose `listId`/`parentId`
+  doesn't actually appear in this export is skipped, not hard-failed — see
+  the `originalListIds`/`originalViewIds`/`originalItemIds` checks. **One
+  deliberate exception to "additive":** `tasksNotificationPrefs` is a
+  per-user singleton (its PK is `tenantId`+`userId`, not a plugin-minted
+  id), so a second import into the same account would collide on that PK —
+  it's seeded only when the account doesn't already have a row, never
+  overwritten.
+- **Delete** (`deleteAllTasksData`, RFC 0033): re-implements `deleteList()`'s
+  own per-list cascade (`actions.ts`) rather than calling it — that function
+  authorizes via a live session (`getContext()`), which an account-deletion
+  flow doesn't have (`ctx.userId`/`ctx.tenantId` are supplied directly).
+- **Manifest permissions**: `data:export` + `data:import` gate participation
+  (`runtime/src/portability/platform.ts`'s `eligiblePluginIds`) — deletion
+  handlers aren't gated by a manifest permission at all, any registered
+  deleter runs unconditionally on account deletion.
+
 ## Keyboard shortcuts and bulk select
 
 TSK-19–21, in `TasksPane.tsx`/`TaskItem.tsx`/`BulkActionBar.tsx`. Shortcuts
@@ -372,7 +412,7 @@ This plugin follows its own semver, independent of the platform version:
 - `feat/` → minor (0.x.0)
 - Breaking change → major (x.0.0)
 
-Current version: **0.13.1**
+Current version: **0.14.0**
 
 ## Running locally
 

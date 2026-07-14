@@ -10,7 +10,7 @@
   "shell": "default",
   "icon": "icon.svg",
   "database": "shared",
-  "permissions": ["auth:session", "db:readWrite", "notifications:send"],
+  "permissions": ["auth:session", "db:readWrite", "notifications:send", "data:export", "data:import"],
   "schedules": [
     { "id": "due-reminders", "intervalMinutes": 1, "entry": "app/_jobs/due-reminders.ts" }
   ],
