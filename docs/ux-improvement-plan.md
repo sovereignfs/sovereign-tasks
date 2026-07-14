@@ -9,18 +9,18 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 
 | # | Task | Repo | Status |
 | --- | --- | --- | --- |
-| 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | shipped |
-| 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | shipped |
-| 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | shipped |
-| 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | shipped |
-| 5 | JSON export/import (account-level data portability) | sovereign-tasks | shipped |
-| 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | shipped |
+| 1 | Long-press drag-reorder (lists page + task rows) | sovereign-tasks | shipped ✅ |
+| 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | shipped ✅ |
+| 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | shipped ✅ |
+| 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | shipped ✅ |
+| 5 | JSON export/import (account-level data portability) | sovereign-tasks | shipped ✅ |
+| 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | shipped ✅ |
 
 ---
 
 ## Task 1 — Long-press drag-reorder (lists page + task rows)
 
-**Status:** shipped — implemented and documented in the plugin's own `CLAUDE.md`
+**Status:** shipped ✅ — implemented and documented in the plugin's own `CLAUDE.md`
 ("Drag reorder", v0.12/v0.12.2: whole-row `MouseSensor`/`TouchSensor` listeners,
 `data-no-dnd` exclusion, `activeVisible`-relative index fix). This plan's own
 status table was stale; corrected here.
@@ -189,7 +189,7 @@ jsdom can't express TouchSensor timing meaningfully.
 
 ## Task 2 — Mark notifications read on click (bell panel)
 
-**Status:** shipped — implemented on `fix/notification-mark-read-on-click`.
+**Status:** shipped ✅ — implemented on `fix/notification-mark-read-on-click`.
 **Repo:** platform monorepo (`sovereignfs/sovereign`) — this is runtime shell
 chrome, not a tasks-plugin change. It lives in this document because the tasks
 notification feature is what surfaced it. Branch type: `fix/` (runtime patch
@@ -286,7 +286,7 @@ No docs-parity impact (no manifest/SDK/env changes). No DB/API changes.
 
 ## Task 3 — Virtual "Starred" list (all prioritized tasks in one view)
 
-**Status:** shipped — implemented on `feat/virtual-starred-list`.
+**Status:** shipped ✅ — implemented on `feat/virtual-starred-list`.
 **Repo:** sovereign-tasks. Branch type: `feat/` (minor bump). Assigned
 requirement id: **TSK-28** (builds on TSK-26 star/favourite —
 add to `roadmap.md` when implemented).
@@ -420,7 +420,7 @@ decoration) alongside existing action tests; `isVirtualListId` trivially.
 
 ## Task 4 — Per-plugin push notification icon
 
-**Status:** shipped — platform fix on `fix/per-plugin-push-icon`
+**Status:** shipped ✅ — platform fix on `fix/per-plugin-push-icon`
 (`sovereignfs/sovereign`); this repo's own stale `icon: 'calendar'` follow-up
 removed on `fix/remove-stale-push-icon`.
 **Repo:** platform monorepo (`sovereignfs/sovereign`) — this is runtime/SDK
@@ -528,7 +528,7 @@ description so it isn't mistaken for an incomplete fix later.
 
 ## Task 5 — JSON export/import (account-level data portability)
 
-**Status:** shipped — implemented on `feat/tasks-data-portability`, assigned
+**Status:** shipped ✅ — implemented on `feat/tasks-data-portability`, assigned
 requirement id **TSK-29**.
 **Repo:** sovereign-tasks. Branch type: `feat/` (minor bump).
 
@@ -672,7 +672,7 @@ account-level export/deletion.
 
 ## Task 6 — Sticky list header + add-task row while scrolling
 
-**Status:** shipped — implemented on `feat/sticky-list-header` (judged
+**Status:** shipped ✅ — implemented on `feat/sticky-list-header` (judged
 `feat/`, minor bump — user-visible behavior change on every breakpoint).
 **Repo:** sovereign-tasks. Branch type: `feat/`(minor bump — user-visible
 behavior change) or `fix/` if judged a pure polish item at implementation
