@@ -43,6 +43,7 @@ completing this milestone.
 | TSK-26 | Star/favourite a task (added ahead of phasing) | ✅ |
 | TSK-27 | Move a single task to a different list from the detail pane (added ahead of phasing; distinct from TSK-21's bulk move) | ✅ |
 | TSK-28 | Virtual "Starred" list — aggregates every starred task across lists in one pinned view (added ahead of phasing; builds on TSK-26) | ✅ |
+| TSK-29 | Account-level data portability — export/import (sv-RFC 0007) and deletion (sv-RFC 0033) via Account → Export/Import my data, no plugin-local UI (added ahead of phasing) | ✅ |
 
 Keyboard shortcuts (scoped to the task-list pane, skipped while typing in a
 field): `n` focuses the add-task input, `j`/`k` (or Up/Down) move a keyboard
@@ -66,6 +67,15 @@ other list behavior (filter, sort by due date/title/created, complete,
 un-star, open detail, move to another list from the detail pane) comes free
 and stays in sync. See `CLAUDE.md`'s "Drag reorder" and "Mobile shell"
 sections for how the underlying mechanisms this reuses work.
+
+Data portability (TSK-29) wires this plugin into the platform's existing
+account-level export/import/deletion flow (sv-RFC 0007 / sv-RFC 0033) — a
+new `app/_lib/portability.ts`, registered from `layout.tsx`, mirroring
+`sovereign-plainwrite`'s own. No new UI in this plugin; the platform side
+(runtime orchestration, API routes, manifest-permission gating) already
+generically supported any registering plugin, so this was a single new file
+plus two manifest permissions (`data:export`, `data:import`). See
+`CLAUDE.md`'s "Data portability" section.
 
 ## v0.4 — Recurrence
 

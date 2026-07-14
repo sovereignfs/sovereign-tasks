@@ -13,7 +13,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | 2 | Mark notifications read on click (bell panel) | **platform** (`sovereignfs/sovereign`) | shipped |
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | shipped |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | shipped |
-| 5 | JSON export/import (account-level data portability) | sovereign-tasks | planned |
+| 5 | JSON export/import (account-level data portability) | sovereign-tasks | shipped |
 | 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | planned |
 
 ---
@@ -528,7 +528,8 @@ description so it isn't mistaken for an incomplete fix later.
 
 ## Task 5 — JSON export/import (account-level data portability)
 
-**Status:** planned
+**Status:** shipped — implemented on `feat/tasks-data-portability`, assigned
+requirement id **TSK-29**.
 **Repo:** sovereign-tasks. Branch type: `feat/` (minor bump).
 
 ### Decisions made (no strong preference given; picked the lower-risk default)
