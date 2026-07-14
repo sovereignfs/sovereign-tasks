@@ -14,7 +14,7 @@ same surfaces in the same repo. Add new tasks as numbered sections; statuses:
 | 3 | Virtual "Starred" list (all prioritized tasks in one view) | sovereign-tasks | shipped |
 | 4 | Per-plugin push notification icon | **platform** (`sovereignfs/sovereign`) | shipped |
 | 5 | JSON export/import (account-level data portability) | sovereign-tasks | shipped |
-| 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | planned |
+| 6 | Sticky list header + add-task row while scrolling | sovereign-tasks | shipped |
 
 ---
 
@@ -672,10 +672,23 @@ account-level export/deletion.
 
 ## Task 6 — Sticky list header + add-task row while scrolling
 
-**Status:** planned
+**Status:** shipped — implemented on `feat/sticky-list-header` (judged
+`feat/`, minor bump — user-visible behavior change on every breakpoint).
 **Repo:** sovereign-tasks. Branch type: `feat/`(minor bump — user-visible
 behavior change) or `fix/` if judged a pure polish item at implementation
 time.
+
+A real bug turned up during live verification that this plan didn't
+anticipate: on mobile, `.stickyHeader`'s `z-index: 1` tied with
+`TaskItem.module.css`'s own mobile-only `.row { z-index: 1; }` (its swipe-
+to-reveal stacking need) — with no intervening ancestor establishing its own
+stacking context between a task row and `.pane`, the tie resolved by DOM
+order, and `.taskList` (rendered after the sticky header) painted over it.
+Task rows scrolled straight through the "pinned" header instead of stopping
+underneath it. Fixed by bumping the sticky header to `z-index: 2` — confirmed
+via `elementFromPoint` hit-testing at multiple y-coordinates (not just a
+screenshot, which didn't reliably reflect the live paint order in this
+environment) before and after the fix.
 
 ### Problem
 

@@ -135,6 +135,26 @@ outcome `useLongPress` already gave, just resolved at release instead of
 mid-hold when a reorder is actually possible). See `CLAUDE.md`'s "Drag
 reorder" section for the sensor/exclusion mechanism.
 
+## Sticky list header + add-task row
+
+Shipped ahead of v1.0, cross-cutting UI work not tied to a specific TSK id
+(like the Mobile UI carousel entry above). The list title/⋯-menu header and
+the "Add a task…" input used to scroll away with the rest of the list on a
+long list — both are now pinned to the top of `TasksPane` on every
+breakpoint via `position: sticky`, with an opaque background sourced from a
+`--tasks-pane-bg` custom property (mirroring `TaskDetailPane`'s own
+`--tasks-detail-bg` pattern). Once Task 3 (virtual "Starred" list) shipped,
+this covered that view too for free, since both reuse the same `TasksPane`
+component.
+
+A mobile-only stacking bug surfaced during verification: the sticky
+header's `z-index` originally tied with `TaskItem`'s own mobile-only
+`.row { z-index: 1 }` (its swipe-to-reveal need), and — since no ancestor
+between a task row and the pane established its own stacking context — the
+tie resolved by DOM order, letting scrolled task rows paint over the
+"pinned" header instead of stopping underneath it. Fixed by giving the
+sticky header `z-index: 2`.
+
 ## v1.0 — Polish and reference implementation
 
 Accessibility audit, full keyboard navigation, documentation, and publication to the Sovereign plugin registry as the canonical reference implementation.

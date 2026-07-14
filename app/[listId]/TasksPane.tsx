@@ -510,94 +510,95 @@ export default function TasksPane({
 
   return (
     <div className={styles.pane} suppressHydrationWarning>
-      <header className={styles.header}>
-        <div className={styles.titleRow} ref={titleRowRef}>
-          {virtualList ? (
-            <span className={styles.starredIcon} aria-hidden>
-              ★
+      <div className={styles.stickyHeader}>
+        <header className={styles.header}>
+          <div className={styles.titleRow} ref={titleRowRef}>
+            {virtualList ? (
+              <span className={styles.starredIcon} aria-hidden>
+                ★
+              </span>
+            ) : (
+              <span
+                className={styles.dot}
+                style={{ background: listDotColor(list.color) }}
+                aria-hidden
+              />
+            )}
+            {renaming ? (
+              <input
+                ref={renameInputRef}
+                className={styles.titleInput}
+                // Pixel-measured width (see the useLayoutEffect above) instead
+                // of stretching to fill the row — keeps the input close to the
+                // title's own footprint while editing, matching how it looked
+                // as plain text. Falls back to a ch-based guess only for the
+                // very first paint, before the layout effect has measured
+                // anything yet.
+                style={{ width: renameInputWidth ?? `${renameTitle.length + 2}ch` }}
+                value={renameTitle}
+                aria-label={`Rename "${list.title}"`}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename();
+                  if (e.key === 'Escape') cancelRename();
+                }}
+              />
+            ) : (
+              // Double-click-to-rename is a mouse-only convenience affordance
+              // layered on top of a plain, fully-readable heading — there's no
+              // separate keyboard-accessible rename entry point by design
+              // (matches ListSidebar's identical row-title pattern). Same
+              // e.detail === 2 trick: desktop only; mobile renames through the
+              // sidebar's Drawer instead.
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+              <h1
+                className={styles.title}
+                onClick={(e) => {
+                  if (!virtualList && !isMobile && e.detail === 2) startRename();
+                }}
+              >
+                {list.title}
+              </h1>
+            )}
+            <span className={styles.count}>
+              {active.length} {active.length === 1 ? 'task' : 'tasks'}
             </span>
-          ) : (
-            <span
-              className={styles.dot}
-              style={{ background: listDotColor(list.color) }}
-              aria-hidden
-            />
-          )}
-          {renaming ? (
-            <input
-              ref={renameInputRef}
-              className={styles.titleInput}
-              // Pixel-measured width (see the useLayoutEffect above) instead
-              // of stretching to fill the row — keeps the input close to the
-              // title's own footprint while editing, matching how it looked
-              // as plain text. Falls back to a ch-based guess only for the
-              // very first paint, before the layout effect has measured
-              // anything yet.
-              style={{ width: renameInputWidth ?? `${renameTitle.length + 2}ch` }}
-              value={renameTitle}
-              aria-label={`Rename "${list.title}"`}
-              onChange={(e) => setRenameTitle(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitRename();
-                if (e.key === 'Escape') cancelRename();
-              }}
-            />
-          ) : (
-            // Double-click-to-rename is a mouse-only convenience affordance
-            // layered on top of a plain, fully-readable heading — there's no
-            // separate keyboard-accessible rename entry point by design
-            // (matches ListSidebar's identical row-title pattern). Same
-            // e.detail === 2 trick: desktop only; mobile renames through the
-            // sidebar's Drawer instead.
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
-            <h1
-              className={styles.title}
-              onClick={(e) => {
-                if (!virtualList && !isMobile && e.detail === 2) startRename();
-              }}
-            >
-              {list.title}
-            </h1>
-          )}
-          <span className={styles.count}>
-            {active.length} {active.length === 1 ? 'task' : 'tasks'}
-          </span>
-          <span className={styles.spacer} aria-hidden />
-          {/* Filter renders inline here (next to the menu) when
+            <span className={styles.spacer} aria-hidden />
+            {/* Filter renders inline here (next to the menu) when
               filterFitsInline says there's room for it — otherwise it folds
               into the menu below instead, so it's never lost, just relocated
               depending on available space and title length. Same logic on
               mobile as desktop; a mobile screen just hits the "doesn't fit"
               branch more often. */}
-          {filterFitsInline && (
-            <SegmentedControl<Filter>
-              value={filter}
-              onChange={setFilter}
-              options={FILTERS}
-              size="sm"
-              aria-label="Filter tasks"
+            {filterFitsInline && (
+              <SegmentedControl<Filter>
+                value={filter}
+                onChange={setFilter}
+                options={FILTERS}
+                size="sm"
+                aria-label="Filter tasks"
+              />
+            )}
+            <Menu
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              align="right"
+              aria-label={`Options for "${list.title}"`}
+              items={menuItems}
+              trigger={
+                <button
+                  type="button"
+                  className={styles.menuBtn}
+                  aria-label={`Options for "${list.title}"`}
+                  onClick={() => setMenuOpen((o) => !o)}
+                >
+                  <Icon name="ellipsis-vertical" size="sm" aria-hidden />
+                </button>
+              }
             />
-          )}
-          <Menu
-            open={menuOpen}
-            onClose={() => setMenuOpen(false)}
-            align="right"
-            aria-label={`Options for "${list.title}"`}
-            items={menuItems}
-            trigger={
-              <button
-                type="button"
-                className={styles.menuBtn}
-                aria-label={`Options for "${list.title}"`}
-                onClick={() => setMenuOpen((o) => !o)}
-              >
-                <Icon name="ellipsis-vertical" size="sm" aria-hidden />
-              </button>
-            }
-          />
-        </div>
-        {/* Hidden measurement-only clone of the fully-inline row (dot + title
+          </div>
+          {/* Hidden measurement-only clone of the fully-inline row (dot + title
             + count + spacer + Filter + menu button), used to decide
             filterFitsInline above. position: absolute + visibility: hidden
             means it never affects real layout, and is automatically removed
@@ -606,43 +607,63 @@ export default function TasksPane({
             added anyway for clarity of intent. Rendering the *real* CSS
             classes here (not hand-summed widths) is what lets this measure
             gaps/padding correctly without duplicating that arithmetic. */}
-        <div
-          ref={shadowRowRef}
-          className={styles.titleRow}
-          style={{
-            position: 'absolute',
-            visibility: 'hidden',
-            pointerEvents: 'none',
-            top: -9999,
-            left: 0,
-            width: 'max-content',
-          }}
-          aria-hidden
-        >
-          {virtualList ? (
-            <span className={styles.starredIcon} aria-hidden>
-              ★
+          <div
+            ref={shadowRowRef}
+            className={styles.titleRow}
+            style={{
+              position: 'absolute',
+              visibility: 'hidden',
+              pointerEvents: 'none',
+              top: -9999,
+              left: 0,
+              width: 'max-content',
+            }}
+            aria-hidden
+          >
+            {virtualList ? (
+              <span className={styles.starredIcon} aria-hidden>
+                ★
+              </span>
+            ) : (
+              <span className={styles.dot} style={{ background: listDotColor(list.color) }} />
+            )}
+            <h1 className={styles.title}>{list.title}</h1>
+            <span className={styles.count}>
+              {active.length} {active.length === 1 ? 'task' : 'tasks'}
             </span>
-          ) : (
-            <span className={styles.dot} style={{ background: listDotColor(list.color) }} />
-          )}
-          <h1 className={styles.title}>{list.title}</h1>
-          <span className={styles.count}>
-            {active.length} {active.length === 1 ? 'task' : 'tasks'}
-          </span>
-          <span className={styles.spacer} />
-          <SegmentedControl<Filter>
-            value={filter}
-            onChange={() => {}}
-            options={FILTERS}
-            size="sm"
-            aria-label="Filter tasks"
-          />
-          <button type="button" className={styles.menuBtn} aria-label="Options">
-            <Icon name="ellipsis-vertical" size="sm" aria-hidden />
-          </button>
-        </div>
-      </header>
+            <span className={styles.spacer} />
+            <SegmentedControl<Filter>
+              value={filter}
+              onChange={() => {}}
+              options={FILTERS}
+              size="sm"
+              aria-label="Filter tasks"
+            />
+            <button type="button" className={styles.menuBtn} aria-label="Options">
+              <Icon name="ellipsis-vertical" size="sm" aria-hidden />
+            </button>
+          </div>
+        </header>
+
+        {/* A new task needs an owning list — the virtual Starred view has none. */}
+        {!virtualList && (
+          <div className={styles.addRow}>
+            <span className={styles.addPlus} aria-hidden>
+              +
+            </span>
+            <input
+              ref={addInputRef}
+              className={styles.addInput}
+              placeholder="Add a task and press Enter…"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddTask();
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       <ConfirmDialog
         open={deleteOpen}
@@ -666,32 +687,13 @@ export default function TasksPane({
         title={`Delete ${completed.length} completed ${completed.length === 1 ? 'task' : 'tasks'}`}
         message={
           <>
-            This permanently removes every completed task in "{list.title}" and their subtasks.
-            This can't be undone.
+            This permanently removes every completed task in "{list.title}" and their subtasks. This
+            can't be undone.
           </>
         }
         confirmLabel="Delete completed tasks"
         destructive
       />
-
-      {/* A new task needs an owning list — the virtual Starred view has none. */}
-      {!virtualList && (
-        <div className={styles.addRow}>
-          <span className={styles.addPlus} aria-hidden>
-            +
-          </span>
-          <input
-            ref={addInputRef}
-            className={styles.addInput}
-            placeholder="Add a task and press Enter…"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddTask();
-            }}
-          />
-        </div>
-      )}
 
       <DndContext
         id="tasks-dnd"
@@ -715,12 +717,12 @@ export default function TasksPane({
                 bulkSelected={selectedIds.has(task.id)}
                 onBulkToggle={virtualList ? undefined : toggleBulkSelect}
                 onMutated={refresh}
-                onFieldPatch={onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined}
+                onFieldPatch={
+                  onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined
+                }
                 swipeOpen={swipeOpenTaskId === task.id}
                 onSwipeOpen={() => setSwipeOpenTaskId(task.id)}
-                onSwipeClose={() =>
-                  setSwipeOpenTaskId((id) => (id === task.id ? null : id))
-                }
+                onSwipeClose={() => setSwipeOpenTaskId((id) => (id === task.id ? null : id))}
                 dragDisabled={!!virtualList || sortBy !== 'manual'}
                 showListBadge={!!virtualList}
                 listTitle={task.listTitle}
@@ -766,12 +768,12 @@ export default function TasksPane({
                   bulkSelected={selectedIds.has(task.id)}
                   onBulkToggle={virtualList ? undefined : toggleBulkSelect}
                   onMutated={refresh}
-                  onFieldPatch={onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined}
+                  onFieldPatch={
+                    onTaskFieldPatch ? (patch) => onTaskFieldPatch(task.id, patch) : undefined
+                  }
                   swipeOpen={swipeOpenTaskId === task.id}
                   onSwipeOpen={() => setSwipeOpenTaskId(task.id)}
-                  onSwipeClose={() =>
-                    setSwipeOpenTaskId((id) => (id === task.id ? null : id))
-                  }
+                  onSwipeClose={() => setSwipeOpenTaskId((id) => (id === task.id ? null : id))}
                   dragDisabled={!!virtualList || sortBy !== 'manual'}
                   showListBadge={!!virtualList}
                   listTitle={task.listTitle}

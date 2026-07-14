@@ -6,9 +6,39 @@
      rows via TaskItem's own .row, .completedHeader, .empty) applies the same
      --sv-space-5 left/right inset itself. This leaves room for each task
      row's floating drag handle to live inside that shared indent without
-     nesting it deeper than the header/add-row (see TaskItem.module.css). */
-  padding: var(--sv-space-5) 0 var(--sv-space-6);
+     nesting it deeper than the header/add-row (see TaskItem.module.css).
+     No top padding either — .stickyHeader below supplies it on itself now
+     (see that rule's own comment for why: a sticky child needs to own its
+     leading gap, not rely on this scroll container's padding-top, the same
+     way TaskDetailPane's .top does). */
+  padding: 0 0 var(--sv-space-6);
   overflow-y: auto;
+}
+
+/* Pins .header + .addRow to the top of .pane while the task list scrolls
+   underneath (TSK: sticky header). padding-top here (not on .pane) is what
+   makes the leading gap above the title stick together with the header
+   instead of scrolling away first — exactly TaskDetailPane's .top pattern.
+   Opaque background via a custom property, not a hardcoded colour: .pane's
+   own background differs by context (desktop three-column .listCol vs.
+   mobile carousel .slide) — see page.module.css's override — the same
+   reason TaskDetailPane needed --tasks-detail-bg instead of
+   background-color: inherit (inherit only reads the *direct* parent, which
+   here is .pane itself and works today, but the indirection guards against
+   an intermediate wrapper ever being added, same lesson learned there).
+   z-index: 2, not 1 — TaskItem.module.css's mobile-only .row rule (its own
+   swipe-to-reveal stacking need) is also z-index: 1, and none of the
+   ancestors between a task row and .pane establish their own stacking
+   context, so a tie at z-index: 1 resolves by DOM order — .taskList (the
+   rows) comes after this element in the JSX tree and would paint over it.
+   Verified live: without this bump, task rows scrolled straight through the
+   "pinned" header on mobile instead of stopping underneath it. */
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: var(--sv-space-5);
+  background-color: var(--tasks-pane-bg, var(--sv-color-surface));
 }
 
 .header {
