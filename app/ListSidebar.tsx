@@ -9,7 +9,16 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, ConfirmDialog, Icon, Popover, Sheet, Tooltip, useDoubleTapHandler } from '@sovereignfs/ui';
+import {
+  Button,
+  ConfirmDialog,
+  Icon,
+  Popover,
+  Sheet,
+  Tooltip,
+  useCommitOnEnterOrBlur,
+  useDoubleTapHandler,
+} from '@sovereignfs/ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
@@ -144,6 +153,12 @@ export default function ListSidebar({ lists: initialLists, starredCount }: Props
     });
   }
 
+  // Losing focus for any reason (including iOS's native keyboard-accessory
+  // Done/checkmark, which fires a blur but no keydown) commits the same as
+  // Enter — see the hook's own doc comment. handleCreate already no-ops on
+  // an empty title, so this is always safe to call.
+  const createListCommitHandlers = useCommitOnEnterOrBlur(handleCreate);
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
@@ -246,13 +261,14 @@ export default function ListSidebar({ lists: initialLists, starredCount }: Props
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreate();
+              createListCommitHandlers.onKeyDown(e);
               if (e.key === 'Escape') {
                 setNewTitle('');
                 setAdding(false);
               }
             }}
             onBlur={() => {
+              createListCommitHandlers.onBlur();
               if (!newTitle.trim()) setAdding(false);
             }}
           />
@@ -506,6 +522,13 @@ function ListItem({
   // button below instead of living behind a gesture at all.
   const handleDotDoubleTap = useDoubleTapHandler(() => onColorPickerToggle());
 
+  // Mobile rename Sheet's input: losing focus for any reason (including
+  // iOS's native keyboard-accessory Done/checkmark, which fires a blur but
+  // no keydown) commits the same as Enter or the Sheet's own Save button —
+  // see the hook's own doc comment. The desktop inline-edit row already
+  // wires onRenameCommit straight to onBlur itself and doesn't need this.
+  const renameSheetCommitHandlers = useCommitOnEnterOrBlur(() => onRenameCommit(list));
+
   // Mobile-only swipe-to-delete. Tracks the gesture in a ref (not state) so
   // dragging updates the DOM directly at 60fps instead of re-rendering on
   // every pointermove; only the final open/closed outcome (on release)
@@ -751,9 +774,10 @@ function ListItem({
                 value={editTitle}
                 onChange={(e) => onEditTitleChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') onRenameCommit(list);
+                  renameSheetCommitHandlers.onKeyDown(e);
                   if (e.key === 'Escape') onRenameCancel(list);
                 }}
+                onBlur={renameSheetCommitHandlers.onBlur}
               />
               <span className={styles.renameSheetLabel}>Colour</span>
               <ColorSwatches list={list} onColor={onColor} showLabels />

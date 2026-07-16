@@ -3,7 +3,14 @@
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { ConfirmDialog, Icon, Menu, type MenuEntry, SegmentedControl } from '@sovereignfs/ui';
+import {
+  ConfirmDialog,
+  Icon,
+  Menu,
+  type MenuEntry,
+  SegmentedControl,
+  useCommitOnEnterOrBlur,
+} from '@sovereignfs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import BulkActionBar from '../_components/BulkActionBar';
@@ -455,6 +462,12 @@ export default function TasksPane({
     });
   }
 
+  // Losing focus for any reason (including iOS's native keyboard-accessory
+  // Done/checkmark, which fires a blur but no keydown) commits the same as
+  // Enter — see the hook's own doc comment. handleAddTask already no-ops on
+  // an empty title, so this is always safe to call.
+  const addTaskCommitHandlers = useCommitOnEnterOrBlur(handleAddTask);
+
   function toggleCompletedSection() {
     const next = !completedOpen;
     startTransition(async () => {
@@ -657,9 +670,7 @@ export default function TasksPane({
               placeholder="Add a task and press Enter…"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddTask();
-              }}
+              {...addTaskCommitHandlers}
             />
           </div>
         )}

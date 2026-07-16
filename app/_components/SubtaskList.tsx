@@ -1,6 +1,6 @@
 'use client';
 
-import { Checkbox } from '@sovereignfs/ui';
+import { Checkbox, useCommitOnEnterOrBlur } from '@sovereignfs/ui';
 import { useEffect, useRef, useState } from 'react';
 import { createTask, deleteTask, getSubtasks, toggleComplete } from '../_lib/actions';
 import styles from './SubtaskList.module.css';
@@ -111,6 +111,12 @@ export default function SubtaskList({
     onMutated();
   }
 
+  // Losing focus for any reason (including iOS's native keyboard-accessory
+  // Done/checkmark, which fires a blur but no keydown) commits the same as
+  // Enter — see the hook's own doc comment. handleAdd already no-ops on an
+  // empty title, so this is always safe to call.
+  const commitHandlers = useCommitOnEnterOrBlur(handleAdd);
+
   return (
     <div className={[styles.root, boxedRows ? styles.rootBoxed : ''].filter(Boolean).join(' ')}>
       {showLabel && (
@@ -146,13 +152,14 @@ export default function SubtaskList({
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAdd();
+              commitHandlers.onKeyDown(e);
               if (e.key === 'Escape') {
                 setNewTitle('');
                 setAdding(false);
               }
             }}
             onBlur={() => {
+              commitHandlers.onBlur();
               if (!newTitle.trim()) setAdding(false);
             }}
           />
