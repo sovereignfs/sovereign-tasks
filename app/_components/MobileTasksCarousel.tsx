@@ -176,8 +176,21 @@ export default function MobileTasksCarousel({ lists, starredCount, refreshSignal
       return;
     }
     if (activeListId) loadList(activeListId);
-    // Intentionally only keyed on refreshSignal — activeListId/loadList are
-    // read at fire-time, not triggers for re-running this effect themselves.
+    // Any mutation, wherever it happens, can change the Starred aggregate —
+    // most commonly starring/unstarring a task while viewing a different,
+    // real list. Its cache lives independently of whichever slide is active
+    // (see listState's per-list-id shape above), so a star toggle elsewhere
+    // never touched it before this line: revisiting Starred later replayed
+    // whatever snapshot was cached the last time it happened to be the
+    // active/neighboring slide, silently missing anything starred since.
+    // Only refetch it if it's already been loaded once — matches the rest of
+    // this file's "never eagerly fetch a slide nobody has viewed" approach.
+    if (activeListId !== STARRED_LIST_ID && listState[STARRED_LIST_ID]) {
+      loadList(STARRED_LIST_ID);
+    }
+    // Intentionally only keyed on refreshSignal — activeListId/loadList/
+    // listState are read at fire-time, not triggers for re-running this
+    // effect themselves.
   }, [refreshSignal]);
 
   // Cold-load at the bare /tasks route: sync the URL to the first list once,
