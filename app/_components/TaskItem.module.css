@@ -162,6 +162,18 @@
 .rowContainer {
   position: relative;
   background-color: inherit;
+  /* Forces this box to composite as a single hard-masked layer instead of
+     relying on .row's opaque background + z-index alone to keep
+     .swipeActionsBg covered. Same WebKit quirk class as .scroller's own
+     comment in MobileTasksCarousel.module.css: momentum-scroll re-tiling can
+     let a z-index-stacked sibling layer flash through for a single frame —
+     reported as the Done/Delete actions briefly, subtly visible while
+     scrolling a long list, never during an actual swipe. overflow: hidden
+     doesn't change what's visible during a real swipe (.swipeActionsBg is
+     already sized to fill this exact box, never extends beyond it) — it only
+     adds a raster-level clip that holds regardless of how descendants'
+     stacking contexts race during scroll. */
+  overflow: hidden;
 }
 
 /* Mobile swipe-to-reveal's actions, behind .row. Sized/positioned so only
